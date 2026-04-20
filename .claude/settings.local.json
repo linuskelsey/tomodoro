@@ -2,7 +2,14 @@
   "permissions": {
     "allow": [
       "Bash(cargo init *)",
-      "Bash(cargo build *)"
+      "Bash(cargo build *)",
+      "Bash(tmux display-message *)",
+      "Bash(ffmpeg -ss 5 -i /home/prometheus/Videos/screenrecording-2026-04-19_22-39-59.mp4 -frames:v 1 /tmp/frame2.png)",
+      "Bash(ffprobe *)",
+      "Bash(ffmpeg *)",
+      "Bash(cbonsai --help)",
+      "Bash(cbonsai -p -s 42 -L 32)",
+      "Bash(cargo install *)"
     ]
   }
 }

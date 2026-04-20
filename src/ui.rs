@@ -2,140 +2,170 @@ use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Gauge, Paragraph},
+    widgets::{Block, Borders, Clear, Paragraph},
     Frame,
 };
 
-use crate::{animation::Animation, timer::Timer};
+use crate::animation::{Animation, RenderMode};
+use crate::timer::{Phase, Timer};
 
-/// Returns the inner rect of the animation area (for sixel overlay positioning).
-pub fn draw(f: &mut Frame, timer: &Timer, anim: &Animation) -> Rect {
+pub fn draw(f: &mut Frame, timer: &Timer, anim: &Animation, show_help: bool) {
     let area = f.area();
-
-    let chunks = Layout::default()
+    let rows = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(3), // status bar
-            Constraint::Min(0),    // animation + time
+            Constraint::Length(1),
+            Constraint::Min(0),
+            Constraint::Length(1),
         ])
         .split(area);
 
-    draw_status_bar(f, timer, chunks[0]);
-    draw_main(f, timer, anim, chunks[1])
-}
+    draw_header(f, timer, rows[0]);
+    draw_animation(f, timer, anim, rows[1]);
+    draw_progress(f, timer, anim, rows[2]);
 
-fn draw_status_bar(f: &mut Frame, timer: &Timer, area: Rect) {
-    let phase_color = phase_color(&timer.phase);
-
-    let sessions_span = Span::styled(
-        format!(" ◉ {}", timer.sessions_completed),
-        Style::default().fg(Color::Yellow),
-    );
-    let phase_span = Span::styled(
-        format!(" {} ", timer.phase.label()),
-        Style::default()
-            .fg(phase_color)
-            .add_modifier(Modifier::BOLD),
-    );
-    let status_span = Span::styled(
-        if timer.running { " ▶ " } else { " ⏸ " },
-        Style::default().fg(Color::DarkGray),
-    );
-
-    let line = Line::from(vec![sessions_span, Span::raw(" │"), phase_span, Span::raw("│"), status_span]);
-
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::DarkGray));
-
-    let para = Paragraph::new(line)
-        .block(block)
-        .alignment(Alignment::Left);
-
-    f.render_widget(para, area);
-}
-
-fn draw_main(f: &mut Frame, timer: &Timer, anim: &Animation, area: Rect) -> Rect {
-    let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Min(0),    // animation
-            Constraint::Length(3), // time + progress
-        ])
-        .split(area);
-
-    let anim_inner = draw_animation(f, timer, anim, chunks[0]);
-    draw_timer(f, timer, chunks[1]);
-    anim_inner
-}
-
-/// Returns the inner rect so the caller can overlay sixel graphics there.
-fn draw_animation(f: &mut Frame, timer: &Timer, anim: &Animation, area: Rect) -> Rect {
-    let block = Block::default()
-        .borders(Borders::LEFT | Borders::RIGHT)
-        .border_style(Style::default().fg(Color::DarkGray));
-
-    let inner = block.inner(area);
-
-    if anim.is_video() {
-        // Inner area left blank; sixel written after draw() returns.
-        f.render_widget(block, area);
-    } else {
-        let char_w = inner.width as usize;
-        let char_h = inner.height as usize;
-        let frame_lines = anim.render_lines(&timer.phase, char_w, char_h);
-        let para = Paragraph::new(frame_lines)
-            .block(block)
-            .alignment(Alignment::Center);
-        f.render_widget(para, area);
+    if show_help {
+        draw_help(f, area);
     }
-
-    inner
 }
 
-fn draw_timer(f: &mut Frame, timer: &Timer, area: Rect) {
-    let chunks = Layout::default()
+fn draw_header(f: &mut Frame, timer: &Timer, area: Rect) {
+    let color = phase_color(&timer.phase);
+    let phase_str = match timer.phase {
+        Phase::Work => "F",
+        Phase::ShortBreak => "B",
+        Phase::LongBreak => "LB",
+    };
+    let filled = (timer.sessions_completed % 4) as usize;
+    let dots: String = "●".repeat(filled) + &"○".repeat(4 - filled);
+
+    let cols = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Length(10), Constraint::Min(0)])
+        .constraints([Constraint::Length(3), Constraint::Min(0), Constraint::Length(5)])
         .split(area);
 
-    // Time display
-    let time_para = Paragraph::new(Line::from(Span::styled(
-        timer.format_remaining(),
-        Style::default()
-            .fg(phase_color(&timer.phase))
-            .add_modifier(Modifier::BOLD),
-    )))
-    .block(
-        Block::default()
-            .borders(Borders::LEFT | Borders::BOTTOM)
-            .border_style(Style::default().fg(Color::DarkGray)),
-    )
-    .alignment(Alignment::Center);
-
-    f.render_widget(time_para, chunks[0]);
-
-    // Progress bar
-    let gauge = Gauge::default()
-        .block(
-            Block::default()
-                .borders(Borders::RIGHT | Borders::BOTTOM)
-                .border_style(Style::default().fg(Color::DarkGray)),
-        )
-        .gauge_style(
-            Style::default()
-                .fg(phase_color(&timer.phase))
-                .bg(Color::Black),
-        )
-        .ratio(timer.progress());
-
-    f.render_widget(gauge, chunks[1]);
+    f.render_widget(
+        Paragraph::new(Span::styled(phase_str, Style::default().fg(color).add_modifier(Modifier::BOLD))),
+        cols[0],
+    );
+    f.render_widget(
+        Paragraph::new(Span::styled(timer.format_remaining(), Style::default().fg(color).add_modifier(Modifier::BOLD)))
+            .alignment(Alignment::Center),
+        cols[1],
+    );
+    f.render_widget(
+        Paragraph::new(Span::styled(dots, Style::default().fg(color)))
+            .alignment(Alignment::Right),
+        cols[2],
+    );
 }
 
-fn phase_color(phase: &crate::timer::Phase) -> Color {
+fn draw_animation(f: &mut Frame, timer: &Timer, anim: &Animation, area: Rect) {
+    let lines = anim.render_lines(&timer.phase, area.width as usize, area.height as usize);
+    f.render_widget(Paragraph::new(lines).alignment(Alignment::Center), area);
+}
+
+fn draw_progress(f: &mut Frame, timer: &Timer, anim: &Animation, area: Rect) {
+    let hint = " ? for help";
+    let hint_width = hint.len() as u16 + 1;
+    let cols = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Min(0), Constraint::Length(hint_width)])
+        .split(area);
+
+    f.render_widget(
+        Paragraph::new(Span::styled(hint, Style::default().fg(Color::Rgb(60, 60, 60)))),
+        cols[1],
+    );
+
+    let area = cols[0];
+    let width = area.width as usize;
+    let progress = timer.progress();
+    let filled_color = anim.theme_color();
+    let empty_color = Color::Rgb(35, 35, 35);
+
+    let line = if anim.render_mode == RenderMode::Braille {
+        // Braille bar: 2 pixels per char, dots on the top row (bits 0x01 left, 0x08 right)
+        let total_px = width * 2;
+        let filled_px = (progress * total_px as f64) as usize;
+        let mut spans: Vec<Span<'static>> = Vec::new();
+        let mut run = String::new();
+        let mut in_filled = true;
+
+        for px in (0..total_px).step_by(2) {
+            let l = px < filled_px;
+            let r = (px + 1) < filled_px;
+            // row-0 braille: dot1=0x01 (left), dot4=0x08 (right)
+            let mask = (l as u8) | ((r as u8) << 3);
+            let ch = char::from_u32(0x2800 | mask as u32).unwrap_or(' ');
+            let this_filled = l || r;
+            if this_filled == in_filled {
+                run.push(ch);
+            } else {
+                let color = if in_filled { filled_color } else { empty_color };
+                spans.push(Span::styled(run.clone(), Style::default().fg(color)));
+                run.clear();
+                in_filled = this_filled;
+                run.push(ch);
+            }
+        }
+        if !run.is_empty() {
+            let color = if in_filled { filled_color } else { empty_color };
+            spans.push(Span::styled(run, Style::default().fg(color)));
+        }
+        Line::from(spans)
+    } else {
+        // Centered bar: ━ (heavy horizontal) filled, ─ (light horizontal) empty
+        let filled = (progress * width as f64) as usize;
+        let mut spans: Vec<Span<'static>> = Vec::new();
+        if filled > 0 {
+            spans.push(Span::styled("━".repeat(filled), Style::default().fg(filled_color)));
+        }
+        if filled < width {
+            spans.push(Span::styled("─".repeat(width - filled), Style::default().fg(empty_color)));
+        }
+        Line::from(spans)
+    };
+
+    f.render_widget(Paragraph::new(line), area);
+}
+
+fn draw_help(f: &mut Frame, area: Rect) {
+    let rows: &[(&str, &str)] = &[
+        ("space",  "pause / resume"),
+        ("n",      "next phase"),
+        ("r",      "restart phase"),
+        ("← →",   "cycle theme"),
+        ("↑ ↓",   "cycle render mode"),
+        ("q",      "quit"),
+        ("?",      "close help"),
+    ];
+
+    let w = 32u16;
+    let h = rows.len() as u16 + 2;
+    let x = area.x + area.width.saturating_sub(w) / 2;
+    let y = area.y + area.height.saturating_sub(h) / 2;
+    let popup = Rect { x, y, width: w.min(area.width), height: h.min(area.height) };
+
+    let lines: Vec<Line> = rows.iter().map(|(key, desc)| {
+        Line::from(vec![
+            Span::styled(format!("  {:<6}", key), Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+            Span::styled(format!("  {}", desc), Style::default().fg(Color::White)),
+        ])
+    }).collect();
+
+    f.render_widget(Clear, popup);
+    f.render_widget(
+        Paragraph::new(lines)
+            .block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(Color::DarkGray))),
+        popup,
+    );
+}
+
+fn phase_color(phase: &Phase) -> Color {
     match phase {
-        crate::timer::Phase::Work => Color::Red,
-        crate::timer::Phase::ShortBreak => Color::Green,
-        crate::timer::Phase::LongBreak => Color::Cyan,
+        Phase::Work => Color::Red,
+        Phase::ShortBreak => Color::Green,
+        Phase::LongBreak => Color::Cyan,
     }
 }

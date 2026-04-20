@@ -13,14 +13,6 @@ pub enum Phase {
 }
 
 impl Phase {
-    pub fn label(&self) -> &'static str {
-        match self {
-            Phase::Work => "WORK",
-            Phase::ShortBreak => "SHORT BREAK",
-            Phase::LongBreak => "LONG BREAK",
-        }
-    }
-
     pub fn duration_secs(&self) -> u64 {
         match self {
             Phase::Work => WORK_SECS,
