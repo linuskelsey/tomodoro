@@ -2,6 +2,8 @@
 
 A terminal Pomodoro timer with animated backgrounds.
 
+![demo](demo.gif)
+
 ![Rust](https://img.shields.io/badge/rust-stable-orange)
 
 ## Install
