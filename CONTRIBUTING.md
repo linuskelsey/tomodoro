@@ -37,6 +37,10 @@ sudo apt install libasound2-dev
 - Run `cargo clippy` and `cargo fmt` before submitting
 - Test in a true-colour terminal (Ghostty, Kitty, WezTerm)
 
+## Planned features
+
+See [ROADMAP.md](ROADMAP.md) for upcoming features open for contribution.
+
 ## Reporting issues
 
 Open an issue on [GitHub](https://github.com/linuskelsey/tomodoro/issues).
