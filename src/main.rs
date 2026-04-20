@@ -16,7 +16,8 @@ use crossterm::{
 use ratatui::{backend::CrosstermBackend, Terminal};
 
 use animation::Animation;
-use timer::{Phase, Timer};
+use timer::{Phase, Timer, TimerConfig};
+use ui::EditState;
 
 const TICK_MS: u64 = 100;
 const SOUND_FOCUS_END: &[u8] = include_bytes!("../sounds/complete.oga");
@@ -57,17 +58,19 @@ fn main() -> io::Result<()> {
 
 fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<()> {
     let audio = audio_thread();
-    let mut timer = Timer::new();
+    let mut timer = Timer::new(TimerConfig::default());
     let mut anim = Animation::new();
     let mut last_beep_sec: Option<u64> = None;
     let mut focus_end_pending: u8 = 0;
     let mut beep_pending: u8 = 0;
     let mut show_help = false;
+    let mut edit_state: Option<EditState> = Some(EditState::from_config(&TimerConfig::default()));
+    let mut startup = true;
     let tick = Duration::from_millis(TICK_MS);
 
     loop {
         terminal.draw(|f| {
-            ui::draw(f, &timer, &anim, show_help);
+            ui::draw(f, &timer, &anim, show_help, edit_state.as_ref(), startup);
         })?;
 
         for _ in 0..focus_end_pending {
@@ -84,26 +87,70 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<()> 
             let remaining = deadline.saturating_duration_since(Instant::now());
             if event::poll(remaining)? {
                 match event::read()? {
-                    Event::Key(key) if key.kind == KeyEventKind::Press => match (key.code, key.modifiers) {
-                        (KeyCode::Char('q'), _)
-                        | (KeyCode::Char('c'), KeyModifiers::CONTROL) => return Ok(()),
-                        (KeyCode::Char('?'), _) => show_help = !show_help,
-                        (KeyCode::Esc, _) if show_help => show_help = false,
-                        _ if show_help => show_help = false,
-                        (KeyCode::Char(' '), _) => timer.toggle(),
-                        (KeyCode::Char('n'), _) => {
-                            let was_work = timer.phase == Phase::Work;
-                            timer.advance();
-                            last_beep_sec = None;
-                            if was_work { focus_end_pending += 1; }
+                    Event::Key(key) if key.kind == KeyEventKind::Press => {
+                        if let Some(ref mut es) = edit_state {
+                            match key.code {
+                                KeyCode::Char('q') => return Ok(()),
+                                KeyCode::Char('c') if key.modifiers == KeyModifiers::CONTROL => return Ok(()),
+                                KeyCode::Esc => {
+                                    if startup {
+                                        // use defaults
+                                        timer.apply_config(TimerConfig::default());
+                                        last_beep_sec = None;
+                                        edit_state = None;
+                                        startup = false;
+                                    } else {
+                                        edit_state = None;
+                                    }
+                                }
+                                KeyCode::Enter => {
+                                    let new_cfg = es.to_config();
+                                    timer.apply_config(new_cfg);
+                                    last_beep_sec = None;
+                                    edit_state = None;
+                                    startup = false;
+                                }
+                                KeyCode::Tab | KeyCode::Down => {
+                                    es.selected = (es.selected + 1) % 3;
+                                }
+                                KeyCode::Up => {
+                                    es.selected = (es.selected + 2) % 3;
+                                }
+                                KeyCode::Char(c) if c.is_ascii_digit() => {
+                                    let f = &mut es.fields[es.selected];
+                                    if f.len() < 3 { f.push(c); }
+                                }
+                                KeyCode::Backspace => {
+                                    es.fields[es.selected].pop();
+                                }
+                                _ => {}
+                            }
+                        } else {
+                            match (key.code, key.modifiers) {
+                                (KeyCode::Char('q'), _)
+                                | (KeyCode::Char('c'), KeyModifiers::CONTROL) => return Ok(()),
+                                (KeyCode::Char('?'), _) => show_help = !show_help,
+                                (KeyCode::Esc, _) if show_help => show_help = false,
+                                _ if show_help => show_help = false,
+                                (KeyCode::Char('e'), _) => {
+                                    edit_state = Some(EditState::from_config(&timer.config));
+                                }
+                                (KeyCode::Char(' '), _) => timer.toggle(),
+                                (KeyCode::Char('n'), _) => {
+                                    let was_work = timer.phase == Phase::Work;
+                                    timer.advance();
+                                    last_beep_sec = None;
+                                    if was_work { focus_end_pending += 1; }
+                                }
+                                (KeyCode::Char('r'), _) => timer.reset(),
+                                (KeyCode::Right, _) => anim.next_theme(),
+                                (KeyCode::Left, _) => anim.prev_theme(),
+                                (KeyCode::Up, _) => anim.next_mode(),
+                                (KeyCode::Down, _) => anim.prev_mode(),
+                                _ => {}
+                            }
                         }
-                        (KeyCode::Char('r'), _) => timer.reset(),
-                        (KeyCode::Right, _) => anim.next_theme(),
-                        (KeyCode::Left, _) => anim.prev_theme(),
-                        (KeyCode::Up, _) => anim.next_mode(),
-                        (KeyCode::Down, _) => anim.prev_mode(),
-                        _ => {}
-                    },
+                    }
                     Event::Resize(_, _) => terminal.clear()?,
                     _ => {}
                 }
@@ -115,7 +162,6 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<()> 
         if timer.running {
             anim.tick();
 
-            // Countdown beeps: last 5 seconds of any break
             if matches!(timer.phase, Phase::ShortBreak | Phase::LongBreak) {
                 let rem = timer.remaining().as_secs();
                 if rem > 0 && rem <= 5 && last_beep_sec != Some(rem) {

@@ -7,9 +7,36 @@ use ratatui::{
 };
 
 use crate::animation::{Animation, RenderMode};
-use crate::timer::{Phase, Timer};
+use crate::timer::{Phase, Timer, TimerConfig};
 
-pub fn draw(f: &mut Frame, timer: &Timer, anim: &Animation, show_help: bool) {
+pub struct EditState {
+    pub fields: [String; 3],
+    pub selected: usize,
+}
+
+impl EditState {
+    pub fn from_config(cfg: &TimerConfig) -> Self {
+        Self {
+            fields: [
+                (cfg.work_secs / 60).to_string(),
+                (cfg.short_break_secs / 60).to_string(),
+                (cfg.long_break_secs / 60).to_string(),
+            ],
+            selected: 0,
+        }
+    }
+
+    pub fn to_config(&self) -> TimerConfig {
+        let parse = |s: &str| s.parse::<u64>().unwrap_or(1).max(1) * 60;
+        TimerConfig {
+            work_secs: parse(&self.fields[0]),
+            short_break_secs: parse(&self.fields[1]),
+            long_break_secs: parse(&self.fields[2]),
+        }
+    }
+}
+
+pub fn draw(f: &mut Frame, timer: &Timer, anim: &Animation, show_help: bool, edit_state: Option<&EditState>, startup: bool) {
     let area = f.area();
     let rows = Layout::default()
         .direction(Direction::Vertical)
@@ -26,6 +53,9 @@ pub fn draw(f: &mut Frame, timer: &Timer, anim: &Animation, show_help: bool) {
 
     if show_help {
         draw_help(f, area);
+    }
+    if let Some(es) = edit_state {
+        draw_edit(f, es, area, startup);
     }
 }
 
@@ -130,11 +160,55 @@ fn draw_progress(f: &mut Frame, timer: &Timer, anim: &Animation, area: Rect) {
     f.render_widget(Paragraph::new(line), area);
 }
 
+fn draw_edit(f: &mut Frame, es: &EditState, area: Rect, startup: bool) {
+    let labels = ["Focus (min)", "Short break (min)", "Long break (min)"];
+    let w = 32u16;
+    let h = labels.len() as u16 + 4;
+    let x = area.x + area.width.saturating_sub(w) / 2;
+    let y = area.y + area.height.saturating_sub(h) / 2;
+    let popup = Rect { x, y, width: w.min(area.width), height: h.min(area.height) };
+
+    let hint_dim = Style::default().fg(Color::Rgb(60, 60, 60));
+    let top_hint = if startup { "  Esc: use defaults" } else { "  Esc: cancel" };
+    let bot_hint = if startup { "  Enter: start" } else { "  Enter: apply" };
+
+    let mut lines: Vec<Line> = vec![Line::from(Span::styled(top_hint, hint_dim))];
+    lines.extend(labels.iter().enumerate().map(|(i, label)| {
+        let selected = i == es.selected;
+        let label_style = if selected {
+            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(Color::DarkGray)
+        };
+        let val_style = if selected {
+            Style::default().fg(Color::White).add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(Color::Gray)
+        };
+        let cursor = if selected { "_" } else { "" };
+        Line::from(vec![
+            Span::styled(format!("  {:<22}", label), label_style),
+            Span::styled(format!("{}{}", es.fields[i], cursor), val_style),
+        ])
+    }));
+    lines.push(Line::from(Span::styled(bot_hint, hint_dim)));
+
+    let title = if startup { " tomodoro " } else { " edit timers " };
+
+    f.render_widget(Clear, popup);
+    f.render_widget(
+        Paragraph::new(lines)
+            .block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(Color::DarkGray)).title(title)),
+        popup,
+    );
+}
+
 fn draw_help(f: &mut Frame, area: Rect) {
     let rows: &[(&str, &str)] = &[
         ("space",  "pause / resume"),
         ("n",      "next phase"),
         ("r",      "restart phase"),
+        ("e",      "edit timers"),
         ("← →",   "cycle theme"),
         ("↑ ↓",   "cycle render mode"),
         ("q",      "quit"),

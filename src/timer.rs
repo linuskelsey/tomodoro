@@ -1,9 +1,19 @@
 use std::time::{Duration, Instant};
 
-const WORK_SECS: u64 = 25 * 60;
-const SHORT_BREAK_SECS: u64 = 5 * 60;
-const LONG_BREAK_SECS: u64 = 15 * 60;
 const SESSIONS_BEFORE_LONG: u32 = 4;
+
+#[derive(Debug, Clone)]
+pub struct TimerConfig {
+    pub work_secs: u64,
+    pub short_break_secs: u64,
+    pub long_break_secs: u64,
+}
+
+impl Default for TimerConfig {
+    fn default() -> Self {
+        Self { work_secs: 25 * 60, short_break_secs: 5 * 60, long_break_secs: 15 * 60 }
+    }
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Phase {
@@ -13,11 +23,11 @@ pub enum Phase {
 }
 
 impl Phase {
-    pub fn duration_secs(&self) -> u64 {
+    pub fn duration_secs(&self, cfg: &TimerConfig) -> u64 {
         match self {
-            Phase::Work => WORK_SECS,
-            Phase::ShortBreak => SHORT_BREAK_SECS,
-            Phase::LongBreak => LONG_BREAK_SECS,
+            Phase::Work => cfg.work_secs,
+            Phase::ShortBreak => cfg.short_break_secs,
+            Phase::LongBreak => cfg.long_break_secs,
         }
     }
 }
@@ -26,19 +36,26 @@ pub struct Timer {
     pub phase: Phase,
     pub sessions_completed: u32,
     pub running: bool,
+    pub config: TimerConfig,
     started_at: Option<Instant>,
     elapsed_at_pause: Duration,
 }
 
 impl Timer {
-    pub fn new() -> Self {
+    pub fn new(config: TimerConfig) -> Self {
         Self {
             phase: Phase::Work,
             sessions_completed: 0,
             running: false,
+            config,
             started_at: None,
             elapsed_at_pause: Duration::ZERO,
         }
+    }
+
+    pub fn apply_config(&mut self, config: TimerConfig) {
+        self.config = config;
+        self.reset();
     }
 
     pub fn toggle(&mut self) {
@@ -61,7 +78,7 @@ impl Timer {
     }
 
     pub fn remaining(&self) -> Duration {
-        let total = Duration::from_secs(self.phase.duration_secs());
+        let total = Duration::from_secs(self.phase.duration_secs(&self.config));
         total.saturating_sub(self.elapsed())
     }
 
@@ -109,7 +126,7 @@ impl Timer {
     }
 
     pub fn progress(&self) -> f64 {
-        let total = self.phase.duration_secs() as f64;
+        let total = self.phase.duration_secs(&self.config) as f64;
         let elapsed = self.elapsed().as_secs_f64();
         (elapsed / total).clamp(0.0, 1.0)
     }
