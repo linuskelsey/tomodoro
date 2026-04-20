@@ -3,7 +3,8 @@ mod timer;
 mod ui;
 
 use std::{
-    io::{self, Write},
+    io::{self, Cursor},
+    sync::mpsc,
     time::{Duration, Instant},
 };
 
@@ -18,6 +19,24 @@ use animation::Animation;
 use timer::{Phase, Timer};
 
 const TICK_MS: u64 = 100;
+const SOUND_FOCUS_END: &[u8] = include_bytes!("../sounds/complete.oga");
+const SOUND_BEEP: &[u8] = include_bytes!("../sounds/dialog-information.oga");
+
+fn audio_thread() -> mpsc::SyncSender<&'static [u8]> {
+    let (tx, rx) = mpsc::sync_channel::<&'static [u8]>(8);
+    std::thread::spawn(move || {
+        let Ok((_stream, handle)) = rodio::OutputStream::try_default() else { return };
+        for bytes in rx {
+            if let Ok(sink) = rodio::Sink::try_new(&handle) {
+                if let Ok(source) = rodio::Decoder::new(Cursor::new(bytes)) {
+                    sink.append(source);
+                    sink.sleep_until_end();
+                }
+            }
+        }
+    });
+    tx
+}
 
 fn main() -> io::Result<()> {
     let mut stdout = io::stdout();
@@ -37,10 +56,12 @@ fn main() -> io::Result<()> {
 }
 
 fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<()> {
+    let audio = audio_thread();
     let mut timer = Timer::new();
     let mut anim = Animation::new();
     let mut last_beep_sec: Option<u64> = None;
-    let mut bell_pending: u8 = 0;
+    let mut focus_end_pending: u8 = 0;
+    let mut beep_pending: u8 = 0;
     let mut show_help = false;
     let tick = Duration::from_millis(TICK_MS);
 
@@ -49,14 +70,14 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<()> 
             ui::draw(f, &timer, &anim, show_help);
         })?;
 
-        // Emit bells after draw so they don't get swallowed by the TUI buffer flush
-        for _ in 0..bell_pending {
-            let _ = terminal.backend_mut().write_all(b"\x07");
+        for _ in 0..focus_end_pending {
+            let _ = audio.try_send(SOUND_FOCUS_END);
         }
-        if bell_pending > 0 {
-            let _ = terminal.backend_mut().flush();
-            bell_pending = 0;
+        focus_end_pending = 0;
+        for _ in 0..beep_pending {
+            let _ = audio.try_send(SOUND_BEEP);
         }
+        beep_pending = 0;
 
         let deadline = Instant::now() + tick;
         loop {
@@ -74,7 +95,7 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<()> 
                             let was_work = timer.phase == Phase::Work;
                             timer.advance();
                             last_beep_sec = None;
-                            if was_work { bell_pending += 1; }
+                            if was_work { focus_end_pending += 1; }
                         }
                         (KeyCode::Char('r'), _) => timer.reset(),
                         (KeyCode::Right, _) => anim.next_theme(),
@@ -99,7 +120,7 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<()> 
                 let rem = timer.remaining().as_secs();
                 if rem > 0 && rem <= 5 && last_beep_sec != Some(rem) {
                     last_beep_sec = Some(rem);
-                    bell_pending += 1;
+                    beep_pending += 1;
                 }
             }
 
@@ -107,7 +128,7 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<()> 
                 let was_work = timer.phase == Phase::Work;
                 timer.advance();
                 last_beep_sec = None;
-                if was_work { bell_pending += 1; }
+                if was_work { focus_end_pending += 1; }
             }
         }
     }

@@ -9,7 +9,8 @@
       "Bash(ffmpeg *)",
       "Bash(cbonsai --help)",
       "Bash(cbonsai -p -s 42 -L 32)",
-      "Bash(cargo install *)"
+      "Bash(cargo install *)",
+      "Bash(cargo clean *)"
     ]
   }
 }

@@ -1,6 +1,6 @@
 [package]
 name = "tomodoro"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 license = "MIT"
 description = "Terminal Pomodoro timer with animated backgrounds"
@@ -11,3 +11,4 @@ categories = ["command-line-utilities"]
 [dependencies]
 ratatui = "0.29"
 crossterm = "0.28"
+rodio = { version = "0.17", default-features = false, features = ["vorbis"] }
