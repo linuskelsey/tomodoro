@@ -983,7 +983,6 @@ fn fill_stars(buf: &mut PixBuf, pw: usize, ph: usize, tick: u64) {
 }
 
 fn fill_fire(buf: &mut PixBuf, pw: usize, ph: usize, tick: u64) {
-    let t        = tick as f64 * 0.13;
     let side_w   = (pw * 19 / 100).max(4);
     let mantel_h = (ph * 11 / 100).max(2);
     let hearth_y = ph.saturating_sub((ph * 9 / 100).max(2));
@@ -995,25 +994,79 @@ fn fill_fire(buf: &mut PixBuf, pw: usize, ph: usize, tick: u64) {
     // Dark room background
     for py in 0..ph { for ppx in 0..pw { buf[py][ppx] = Some(Color::Rgb(5, 4, 3)); } }
 
-    // Fire in opening
+    // Back wall of fireplace — soot-stained, darker than room to push it back
+    for py in mantel_h..hearth_y {
+        for ppx in fire_x0..fire_x1 {
+            let v = hash(ppx as u64 * 3 + py as u64 * 7 + 999);
+            buf[py][ppx] = Some(Color::Rgb(
+                11u8.saturating_add((v % 4) as u8),
+                9u8.saturating_add(((v >> 4) % 3) as u8),
+                8u8.saturating_add(((v >> 8) % 3) as u8),
+            ));
+        }
+    }
+
+    // Fire — hash-based crackle: each column flickers independently, no sine sweep
+    let crackle_t = tick / 4;
+    let blend_f   = (tick % 4) as f64 / 4.0;
     for ppx in fire_x0..fire_x1 {
         let local_x = ppx - fire_x0;
-        let cx = (local_x as f64 - fire_pw as f64 / 2.0).abs() / (fire_pw as f64 / 2.0);
-        let flicker = (ppx as f64 * 0.6 + t * 2.1).sin() * 0.13
-                    + (ppx as f64 * 0.3 - t * 1.4).sin() * 0.08;
-        let height = ((1.0 - cx * 0.55 + flicker).clamp(0.0, 1.0) * 0.85 * fire_ph as f64) as usize;
+        let cx      = (local_x as f64 - fire_pw as f64 / 2.0).abs() / (fire_pw as f64 / 2.0);
+        let arch    = (1.0 - cx * 0.65).max(0.0);
+
+        // Current and next crackle state blended — independent per column
+        let ha = hash(ppx as u64 * 11 + crackle_t * 37 + 101);
+        let hb = hash(ppx as u64 * 11 + (crackle_t + 1) * 37 + 101);
+        let ca = (ha % 100) as f64 / 100.0 * 0.30 - 0.09;
+        let cb = (hb % 100) as f64 / 100.0 * 0.30 - 0.09;
+        // Slight neighbour influence so adjacent columns aren't totally unrelated
+        let hn = hash((ppx as u64 + 1) * 11 + crackle_t * 37 + 101);
+        let cn = (hn % 100) as f64 / 100.0 * 0.30 - 0.09;
+        let crackle = (ca * (1.0 - blend_f) + cb * blend_f) * 0.75 + cn * 0.25;
+
+        let height = ((arch + crackle).clamp(0.1, 1.0) * 0.82 * fire_ph as f64) as usize;
         let top    = hearth_y.saturating_sub(height);
-        for py in mantel_h..hearth_y {
-            buf[py][ppx] = Some(if py < top {
-                let sd = top as isize - py as isize;
-                if sd < 4 { let v = sd as u8 * 14; Color::Rgb(v / 2, v / 3, v / 3) }
-                else { Color::Rgb(10, 6, 5) }
-            } else {
-                let f = (py - top) as f64 / height.max(1) as f64;
-                if f < 0.25 { let v = f/0.25; Color::Rgb(255, (200.0*v+55.0) as u8, (80.0*(1.0-v)) as u8) }
-                else if f < 0.65 { let v = (f-0.25)/0.40; Color::Rgb(255, (55.0*(1.0-v)) as u8, 0) }
-                else { Color::Rgb(((1.0-(f-0.65)/0.35)*255.0) as u8, 0, 0) }
-            });
+
+        for py in top..hearth_y {
+            let f = (py - top) as f64 / height.max(1) as f64;
+            buf[py][ppx] = Some(
+                if f < 0.20 { let v = f/0.20; Color::Rgb(255, (210.0*v+45.0) as u8, (90.0*(1.0-v)) as u8) }
+                else if f < 0.60 { let v = (f-0.20)/0.40; Color::Rgb(255, (45.0*(1.0-v)) as u8, 0) }
+                else { Color::Rgb(((1.0-(f-0.60)/0.40)*240.0).max(0.0) as u8, 0, 0) }
+            );
+        }
+    }
+
+    // Sparks — brief bright pixels near flame tips
+    let n_sparks = (fire_pw / 2).max(3);
+    for i in 0..n_sparks {
+        let hs = hash(i as u64 * 17 + tick / 5 * 31 + 555);
+        if hs % 4 != 0 { continue; }
+        let sx = fire_x0 + (hs >> 10) as usize % fire_pw;
+        let sy = mantel_h + (hs >> 20) as usize % (fire_ph * 2 / 5);
+        set_px(buf, sx as isize, sy as isize, match (hs >> 5) % 3 {
+            0 => Color::Rgb(255, 210, 60),
+            1 => Color::Rgb(255, 150, 25),
+            _ => Color::Rgb(255, 255, 190),
+        });
+    }
+
+    // Depth — shadow gradient at inner edges of opening, simulating column thickness
+    let shadow_w = (fire_pw / 6).max(3);
+    for py in mantel_h..hearth_y {
+        for dx in 0..shadow_w {
+            let alpha = (1.0 - dx as f64 / shadow_w as f64) * 0.78;
+            for &px in &[fire_x0 + dx, fire_x1.saturating_sub(1 + dx)] {
+                if px < buf[0].len() {
+                    if let Some(Color::Rgb(r, g, b)) = buf[py][px] {
+                        buf[py][px] = Some(Color::Rgb(
+                            (r as f64 * (1.0 - alpha)) as u8,
+                            (g as f64 * (1.0 - alpha)) as u8,
+                            (b as f64 * (1.0 - alpha)) as u8,
+                        ));
+                    }
+                }
+            }
         }
     }
 
