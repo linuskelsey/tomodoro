@@ -36,7 +36,7 @@ impl EditState {
     }
 }
 
-pub fn draw(f: &mut Frame, timer: &Timer, anim: &Animation, show_help: bool, edit_state: Option<&EditState>, startup: bool) {
+pub fn draw(f: &mut Frame, timer: &Timer, anim: &Animation, show_help: bool, edit_state: Option<&EditState>, startup: bool, volume: f32) {
     let area = f.area();
     let rows = Layout::default()
         .direction(Direction::Vertical)
@@ -47,9 +47,9 @@ pub fn draw(f: &mut Frame, timer: &Timer, anim: &Animation, show_help: bool, edi
         ])
         .split(area);
 
-    draw_header(f, timer, rows[0]);
+    draw_header(f, timer, rows[0], volume);
     draw_animation(f, timer, anim, rows[1]);
-    draw_progress(f, timer, anim, rows[2]);
+    draw_progress(f, timer, anim, rows[2], volume);
 
     if show_help {
         draw_help(f, area);
@@ -59,7 +59,7 @@ pub fn draw(f: &mut Frame, timer: &Timer, anim: &Animation, show_help: bool, edi
     }
 }
 
-fn draw_header(f: &mut Frame, timer: &Timer, area: Rect) {
+fn draw_header(f: &mut Frame, timer: &Timer, area: Rect, volume: f32) {
     let color = phase_color(&timer.phase);
     let phase_str = match timer.phase {
         Phase::Work => "F",
@@ -71,13 +71,17 @@ fn draw_header(f: &mut Frame, timer: &Timer, area: Rect) {
 
     let cols = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Length(3), Constraint::Min(0), Constraint::Length(5)])
+        .constraints([Constraint::Fill(1), Constraint::Length(5), Constraint::Fill(1)])
         .split(area);
 
-    f.render_widget(
-        Paragraph::new(Span::styled(phase_str, Style::default().fg(color).add_modifier(Modifier::BOLD))),
-        cols[0],
-    );
+    let left = Line::from(vec![
+        Span::styled(phase_str, Style::default().fg(color).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            format!("  vol: {}% [/]", (volume * 100.0).round() as u8),
+            Style::default().fg(Color::Rgb(70, 70, 70)),
+        ),
+    ]);
+    f.render_widget(Paragraph::new(left), cols[0]);
     f.render_widget(
         Paragraph::new(Span::styled(timer.format_remaining(), Style::default().fg(color).add_modifier(Modifier::BOLD)))
             .alignment(Alignment::Center),
@@ -95,7 +99,8 @@ fn draw_animation(f: &mut Frame, timer: &Timer, anim: &Animation, area: Rect) {
     f.render_widget(Paragraph::new(lines).alignment(Alignment::Center), area);
 }
 
-fn draw_progress(f: &mut Frame, timer: &Timer, anim: &Animation, area: Rect) {
+fn draw_progress(f: &mut Frame, timer: &Timer, anim: &Animation, area: Rect, volume: f32) {
+    let _ = volume;
     let hint = " ? for help";
     let hint_width = hint.len() as u16 + 1;
     let cols = Layout::default()
@@ -209,6 +214,7 @@ fn draw_help(f: &mut Frame, area: Rect) {
         ("n",      "next phase"),
         ("r",      "restart phase"),
         ("e",      "edit timers"),
+        ("[  ]",   "volume down / up"),
         ("← →",   "cycle theme"),
         ("↑ ↓",   "cycle render mode"),
         ("q",      "quit"),

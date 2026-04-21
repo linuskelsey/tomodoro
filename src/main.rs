@@ -23,12 +23,13 @@ const TICK_MS: u64 = 100;
 const SOUND_FOCUS_END: &[u8] = include_bytes!("../sounds/complete.oga");
 const SOUND_BEEP: &[u8] = include_bytes!("../sounds/dialog-information.oga");
 
-fn audio_thread() -> mpsc::SyncSender<&'static [u8]> {
-    let (tx, rx) = mpsc::sync_channel::<&'static [u8]>(8);
+fn audio_thread() -> mpsc::SyncSender<(&'static [u8], f32)> {
+    let (tx, rx) = mpsc::sync_channel::<(&'static [u8], f32)>(8);
     std::thread::spawn(move || {
         let Ok((_stream, handle)) = rodio::OutputStream::try_default() else { return };
-        for bytes in rx {
+        for (bytes, volume) in rx {
             if let Ok(sink) = rodio::Sink::try_new(&handle) {
+                sink.set_volume(volume);
                 if let Ok(source) = rodio::Decoder::new(Cursor::new(bytes)) {
                     sink.append(source);
                     sink.sleep_until_end();
@@ -39,7 +40,25 @@ fn audio_thread() -> mpsc::SyncSender<&'static [u8]> {
     tx
 }
 
+fn play_immediate(bytes: &'static [u8], volume: f32) {
+    std::thread::spawn(move || {
+        let Ok((_stream, handle)) = rodio::OutputStream::try_default() else { return };
+        if let Ok(sink) = rodio::Sink::try_new(&handle) {
+            sink.set_volume(volume);
+            if let Ok(source) = rodio::Decoder::new(Cursor::new(bytes)) {
+                sink.append(source);
+                sink.sleep_until_end();
+            }
+        }
+    });
+}
+
 fn main() -> io::Result<()> {
+    if std::env::args().any(|a| a == "--version" || a == "-V") {
+        println!("{}", env!("CARGO_PKG_VERSION"));
+        return Ok(());
+    }
+
     let mut stdout = io::stdout();
     enable_raw_mode()?;
     execute!(stdout, EnterAlternateScreen, EnableFocusChange)?;
@@ -60,8 +79,9 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<()> 
     let audio = audio_thread();
     let mut timer = Timer::new(TimerConfig::default());
     let mut anim = Animation::new();
+    let mut volume: f32 = 1.0;
     let mut last_beep_sec: Option<u64> = None;
-    let mut focus_end_pending: u8 = 0;
+    let mut ding_pending: u8 = 0;
     let mut beep_pending: u8 = 0;
     let mut show_help = false;
     let mut edit_state: Option<EditState> = Some(EditState::from_config(&TimerConfig::default()));
@@ -70,15 +90,15 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<()> 
 
     loop {
         terminal.draw(|f| {
-            ui::draw(f, &timer, &anim, show_help, edit_state.as_ref(), startup);
+            ui::draw(f, &timer, &anim, show_help, edit_state.as_ref(), startup, volume);
         })?;
 
-        for _ in 0..focus_end_pending {
-            let _ = audio.try_send(SOUND_FOCUS_END);
+        for _ in 0..ding_pending {
+            play_immediate(SOUND_FOCUS_END, volume);
         }
-        focus_end_pending = 0;
+        ding_pending = 0;
         for _ in 0..beep_pending {
-            let _ = audio.try_send(SOUND_BEEP);
+            let _ = audio.try_send((SOUND_BEEP, volume));
         }
         beep_pending = 0;
 
@@ -129,8 +149,9 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<()> 
                             match (key.code, key.modifiers) {
                                 (KeyCode::Char('q'), _)
                                 | (KeyCode::Char('c'), KeyModifiers::CONTROL) => return Ok(()),
-                                (KeyCode::Char('?'), _) => show_help = !show_help,
                                 (KeyCode::Esc, _) if show_help => show_help = false,
+                                (KeyCode::Esc, _) => return Ok(()),
+                                (KeyCode::Char('?'), _) => show_help = !show_help,
                                 _ if show_help => show_help = false,
                                 (KeyCode::Char('e'), _) => {
                                     edit_state = Some(EditState::from_config(&timer.config));
@@ -140,9 +161,11 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<()> 
                                     let was_work = timer.phase == Phase::Work;
                                     timer.advance();
                                     last_beep_sec = None;
-                                    if was_work { focus_end_pending += 1; }
+                                    if was_work { ding_pending += 1; }
                                 }
                                 (KeyCode::Char('r'), _) => timer.reset(),
+                                (KeyCode::Char(']'), _) => volume = (volume + 0.1).min(1.0),
+                                (KeyCode::Char('['), _) => volume = (volume - 0.1).max(0.0),
                                 (KeyCode::Right, _) => anim.next_theme(),
                                 (KeyCode::Left, _) => anim.prev_theme(),
                                 (KeyCode::Up, _) => anim.next_mode(),
@@ -171,10 +194,9 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<()> 
             }
 
             if timer.is_finished() {
-                let was_work = timer.phase == Phase::Work;
                 timer.advance();
                 last_beep_sec = None;
-                if was_work { focus_end_pending += 1; }
+                ding_pending += 1;
             }
         }
     }
