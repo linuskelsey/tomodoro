@@ -10,28 +10,27 @@ use crate::animation::{Animation, RenderMode};
 use crate::timer::{Phase, Timer, TimerConfig};
 
 pub struct EditState {
-    pub fields: [String; 3],
+    pub fields: [(u64, u64); 3],  // (hours, minutes) per field
     pub selected: usize,
+    pub unit: usize,  // 0=hours, 1=minutes
 }
 
 impl EditState {
     pub fn from_config(cfg: &TimerConfig) -> Self {
+        let to_hm = |s: u64| (s / 3600, (s % 3600) / 60);
         Self {
-            fields: [
-                (cfg.work_secs / 60).to_string(),
-                (cfg.short_break_secs / 60).to_string(),
-                (cfg.long_break_secs / 60).to_string(),
-            ],
+            fields: [to_hm(cfg.work_secs), to_hm(cfg.short_break_secs), to_hm(cfg.long_break_secs)],
             selected: 0,
+            unit: 1,
         }
     }
 
     pub fn to_config(&self) -> TimerConfig {
-        let parse = |s: &str| s.parse::<u64>().unwrap_or(1).max(1) * 60;
+        let to_secs = |(h, m): (u64, u64)| (h * 60 + m).max(1) * 60;
         TimerConfig {
-            work_secs: parse(&self.fields[0]),
-            short_break_secs: parse(&self.fields[1]),
-            long_break_secs: parse(&self.fields[2]),
+            work_secs: to_secs(self.fields[0]),
+            short_break_secs: to_secs(self.fields[1]),
+            long_break_secs: to_secs(self.fields[2]),
         }
     }
 }
@@ -166,36 +165,76 @@ fn draw_progress(f: &mut Frame, timer: &Timer, anim: &Animation, area: Rect, vol
 }
 
 fn draw_edit(f: &mut Frame, es: &EditState, area: Rect, startup: bool) {
-    let labels = ["Focus (min)", "Short break (min)", "Long break (min)"];
+    let labels = ["Focus", "Short break", "Long break"];
     let w = 32u16;
-    let h = labels.len() as u16 + 4;
+    // interior: 1 top_hint + (2 collapsed + 3 expanded) fields + 1 bot_hint = 7; +2 borders = 9
+    let h = 9u16;
     let x = area.x + area.width.saturating_sub(w) / 2;
     let y = area.y + area.height.saturating_sub(h) / 2;
     let popup = Rect { x, y, width: w.min(area.width), height: h.min(area.height) };
 
-    let hint_dim = Style::default().fg(Color::Rgb(60, 60, 60));
-    let top_hint = if startup { "  Esc: use defaults" } else { "  Esc: cancel" };
-    let bot_hint = if startup { "  Enter: start" } else { "  Enter: apply" };
+    let hint_dim  = Style::default().fg(Color::Rgb(60, 60, 60));
+    let arrow_sty = Style::default().fg(Color::Yellow);
+    let bot_hint  = if startup { "  Enter: start  Esc: cancel" } else { "  Enter: apply  Esc: cancel" };
 
-    let mut lines: Vec<Line> = vec![Line::from(Span::styled(top_hint, hint_dim))];
-    lines.extend(labels.iter().enumerate().map(|(i, label)| {
+    let mut lines: Vec<Line> = vec![
+        Line::from(Span::styled("  Tab: field   ← →: h/m", hint_dim)),
+    ];
+
+    // indent to value column: 2 spaces + 14 label + 1 space = 17 chars
+    let val_indent = format!("{:17}", "");
+
+    for (i, label) in labels.iter().enumerate() {
         let selected = i == es.selected;
-        let label_style = if selected {
-            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+        let (hv, mv) = es.fields[i];
+
+        if selected {
+            let h_ch_up = if es.unit == 0 { '▲' } else { ' ' };
+            let m_ch_up = if es.unit == 1 { '▲' } else { ' ' };
+            let h_ch_dn = if es.unit == 0 { '▼' } else { ' ' };
+            let m_ch_dn = if es.unit == 1 { '▼' } else { ' ' };
+
+            // ▲ row: indent + h_arrow + 2 spaces + m_arrow
+            lines.push(Line::from(vec![
+                Span::raw(val_indent.clone()),
+                Span::styled(h_ch_up.to_string(), arrow_sty),
+                Span::raw("  "),
+                Span::styled(m_ch_up.to_string(), arrow_sty),
+            ]));
+
+            // value row
+            let h_sty = if es.unit == 0 {
+                Style::default().fg(Color::White).add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(Color::Gray)
+            };
+            let m_sty = if es.unit == 1 {
+                Style::default().fg(Color::White).add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(Color::Gray)
+            };
+            lines.push(Line::from(vec![
+                Span::styled(format!("  {:<14} ", label), Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+                Span::styled(format!("{:02}", hv), h_sty),
+                Span::raw(":"),
+                Span::styled(format!("{:02}", mv), m_sty),
+            ]));
+
+            // ▼ row
+            lines.push(Line::from(vec![
+                Span::raw(val_indent.clone()),
+                Span::styled(h_ch_dn.to_string(), arrow_sty),
+                Span::raw("  "),
+                Span::styled(m_ch_dn.to_string(), arrow_sty),
+            ]));
         } else {
-            Style::default().fg(Color::DarkGray)
-        };
-        let val_style = if selected {
-            Style::default().fg(Color::White).add_modifier(Modifier::BOLD)
-        } else {
-            Style::default().fg(Color::Gray)
-        };
-        let cursor = if selected { "_" } else { "" };
-        Line::from(vec![
-            Span::styled(format!("  {:<22}", label), label_style),
-            Span::styled(format!("{}{}", es.fields[i], cursor), val_style),
-        ])
-    }));
+            lines.push(Line::from(vec![
+                Span::styled(format!("  {:<14} ", label), Style::default().fg(Color::DarkGray)),
+                Span::styled(format!("{:02}:{:02}", hv, mv), Style::default().fg(Color::Gray)),
+            ]));
+        }
+    }
+
     lines.push(Line::from(Span::styled(bot_hint, hint_dim)));
 
     let title = if startup { " tomodoro " } else { " edit timers " };

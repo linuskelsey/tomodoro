@@ -59,6 +59,17 @@ fn main() -> io::Result<()> {
         return Ok(());
     }
 
+    let default_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        let _ = crossterm::terminal::disable_raw_mode();
+        let _ = crossterm::execute!(
+            std::io::stderr(),
+            crossterm::terminal::LeaveAlternateScreen,
+            crossterm::event::DisableFocusChange,
+        );
+        default_hook(info);
+    }));
+
     let mut stdout = io::stdout();
     enable_raw_mode()?;
     execute!(stdout, EnterAlternateScreen, EnableFocusChange)?;
@@ -113,15 +124,10 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<()> 
                                 KeyCode::Char('q') => return Ok(()),
                                 KeyCode::Char('c') if key.modifiers == KeyModifiers::CONTROL => return Ok(()),
                                 KeyCode::Esc => {
-                                    if startup {
-                                        // use defaults
-                                        timer.apply_config(TimerConfig::default());
-                                        last_beep_sec = None;
-                                        edit_state = None;
-                                        startup = false;
-                                    } else {
-                                        edit_state = None;
-                                    }
+                                    timer.apply_config(TimerConfig::default());
+                                    last_beep_sec = None;
+                                    edit_state = None;
+                                    startup = false;
                                 }
                                 KeyCode::Enter => {
                                     let new_cfg = es.to_config();
@@ -130,18 +136,27 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<()> 
                                     edit_state = None;
                                     startup = false;
                                 }
-                                KeyCode::Tab | KeyCode::Down => {
+                                KeyCode::Tab => {
                                     es.selected = (es.selected + 1) % 3;
                                 }
+                                KeyCode::Left => { es.unit = 0; }
+                                KeyCode::Right => { es.unit = 1; }
                                 KeyCode::Up => {
-                                    es.selected = (es.selected + 2) % 3;
+                                    if es.unit == 0 {
+                                        es.fields[es.selected].0 = (es.fields[es.selected].0 + 1).min(23);
+                                    } else {
+                                        let m = &mut es.fields[es.selected].1;
+                                        *m = if *m < 59 { *m + 1 } else { 0 };
+                                    }
                                 }
-                                KeyCode::Char(c) if c.is_ascii_digit() => {
-                                    let f = &mut es.fields[es.selected];
-                                    if f.len() < 3 { f.push(c); }
-                                }
-                                KeyCode::Backspace => {
-                                    es.fields[es.selected].pop();
+                                KeyCode::Down => {
+                                    if es.unit == 0 {
+                                        let h = &mut es.fields[es.selected].0;
+                                        if *h > 0 { *h -= 1; }
+                                    } else {
+                                        let m = &mut es.fields[es.selected].1;
+                                        *m = if *m > 0 { *m - 1 } else { 59 };
+                                    }
                                 }
                                 _ => {}
                             }
