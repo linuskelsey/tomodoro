@@ -439,9 +439,12 @@ fn draw_background_trees(buf: &mut PixBuf, pw: usize, ph: usize) {
         let cy      = top_y - cr / 2;
         let cols    = &palettes[pal % palettes.len()];
 
-        // Thin trunk (1-2px)
+        // Trunk — width scales with tree size
+        let tw = (cr / 3).max(2);
         for py in top_y..ground_y as isize {
-            set_px(buf, tx, py, trunk_col);
+            for dx in -tw..=tw {
+                set_px(buf, tx + dx, py, trunk_col);
+            }
         }
 
         // Canopy — slightly elliptical blob with density variation
@@ -682,16 +685,66 @@ fn fill_waves(buf: &mut PixBuf, pw: usize, ph: usize, tick: u64) {
                 let frac = py as f64 / horizon as f64;
                 Color::Rgb((8.0 + frac*18.0) as u8, (18.0 + frac*38.0) as u8, (55.0 + frac*75.0) as u8)
             } else {
-                let wy = py - horizon;
-                let wh = ph - horizon;
+                let wy  = py - horizon;
+                let wh  = ph - horizon;
+                let wyf = wy as f64;
+                let whf = wh as f64;
+                let depth = wyf / whf;
+
+                // Wave trains — surface and three sub-surface layers
                 let w1 = (ppx as f64 * 0.35 + t).sin() * 2.5;
                 let w2 = (ppx as f64 * 0.18 - t * 0.65).sin() * 1.5;
-                let surf = (wy as f64 - (w1 + w2)).abs();
-                if surf < 1.3 { Color::Rgb(200, 230, 255) }
-                else if surf < 2.5 { Color::Rgb(120, 185, 230) }
-                else {
-                    let depth = wy as f64 / wh as f64;
-                    Color::Rgb(0, (90.0 - depth*50.0) as u8, (200.0 - depth*80.0) as u8)
+                let surf = (wyf - (w1 + w2)).abs();
+
+                let w3   = (ppx as f64 * 0.52 + t * 1.2).sin() * 1.8;
+                let w4   = (ppx as f64 * 0.27 - t * 0.85).sin() * 1.3;
+                let d1   = whf * 0.11;
+                let surf2 = (wyf - d1 - (w3 + w4)).abs();
+
+                let w5   = (ppx as f64 * 0.66 - t * 1.45).sin() * 1.4;
+                let w6   = (ppx as f64 * 0.15 + t * 0.42).sin() * 1.9;
+                let d2   = whf * 0.23;
+                let surf3 = (wyf - d2 - (w5 + w6 * 0.6)).abs();
+
+                let w7   = (ppx as f64 * 0.80 + t * 1.75).sin() * 1.1;
+                let w8   = (ppx as f64 * 0.38 - t * 0.55).sin() * 1.6;
+                let d3   = whf * 0.38;
+                let surf4 = (wyf - d3 - (w7 + w8 * 0.7)).abs();
+
+                // Cross-chop — short diagonal ripples across the body
+                let chop1 = (ppx as f64 * 0.9 + wyf * 0.4 + t * 2.1).sin();
+                let chop2 = (ppx as f64 * 0.7 - wyf * 0.35 - t * 1.8).sin();
+                let chop  = (chop1 * chop2).abs();
+
+                // Subtle specular glints
+                let refl  = (ppx as f64 * 0.13 - t * 0.28).sin()
+                           * (ppx as f64 * 0.08 + t * 0.19).sin();
+
+                let base_g = (90.0 - depth * 50.0).max(0.0);
+                let base_b = (200.0 - depth * 80.0).max(0.0);
+
+                if surf < 1.3 {
+                    Color::Rgb(205, 232, 255)
+                } else if surf < 2.6 {
+                    Color::Rgb(125, 188, 232)
+                } else if surf2 < 1.0 {
+                    Color::Rgb(80, 158, 218)
+                } else if surf2 < 2.0 {
+                    Color::Rgb(30, 122, 200)
+                } else if surf3 < 0.9 {
+                    Color::Rgb(18, 108, 185)
+                } else if surf3 < 1.8 {
+                    Color::Rgb(8, 95, 172)
+                } else if surf4 < 0.85 && depth < 0.72 {
+                    Color::Rgb(12, 102, 168)
+                } else if chop > 0.82 && depth < 0.55 {
+                    // cross-chop glitter
+                    Color::Rgb((12.0 + chop * 28.0) as u8, (base_g + chop * 22.0).min(255.0) as u8, (base_b + chop * 14.0).min(255.0) as u8)
+                } else if refl > 0.68 && depth < 0.42 {
+                    // specular glint near surface
+                    Color::Rgb((18.0 + refl * 45.0) as u8, (base_g + refl * 32.0).min(255.0) as u8, (base_b + refl * 18.0).min(255.0) as u8)
+                } else {
+                    Color::Rgb(0, base_g as u8, base_b as u8)
                 }
             });
         }
@@ -823,6 +876,73 @@ fn fill_leaves(buf: &mut PixBuf, pw: usize, ph: usize, tick: u64) {
     }
 }
 
+fn draw_ufo(buf: &mut PixBuf, pw: usize, ph: usize, tick: u64) {
+    let period  = 380u64;
+    let visible = 100u64;
+    let phase   = tick % period;
+    if phase >= visible { return; }
+
+    let crossing  = tick / period;
+    let progress  = phase as f64 / visible as f64;
+    // alternate direction each crossing
+    let cx = if crossing % 2 == 0 {
+        (progress * (pw as f64 + 24.0)) as isize - 12
+    } else {
+        (pw as f64 + 12.0 - progress * (pw as f64 + 24.0)) as isize
+    };
+    // vary y position between crossings
+    let base_y  = (ph as f64 * (0.30 + (hash(crossing * 31 + 7) % 20) as f64 * 0.01)) as isize;
+    let bob     = ((tick as f64 * 0.18).sin() * 2.5) as isize;
+    let cy      = base_y + bob;
+
+    let body_hi = Color::Rgb(168, 170, 182);
+    let body_dk = Color::Rgb(108, 110, 124);
+    let dome_hi = Color::Rgb(85, 195, 230);
+    let dome_dk = Color::Rgb(48, 142, 178);
+    let rim_col = Color::Rgb(200, 200, 210);
+
+    // Saucer body — wide ellipse 2px tall
+    for dx in -5isize..=5 {
+        let inner = dx.abs() <= 2;
+        set_px(buf, cx + dx, cy,     if inner { body_hi } else { body_dk });
+        set_px(buf, cx + dx, cy + 1, body_dk);
+    }
+    // Rim highlight
+    set_px(buf, cx - 5, cy, rim_col);
+    set_px(buf, cx + 5, cy, rim_col);
+
+    // Dome
+    for dx in -2isize..=2 { set_px(buf, cx + dx, cy - 1, dome_dk); }
+    for dx in -1isize..=1 { set_px(buf, cx + dx, cy - 2, dome_hi); }
+    set_px(buf, cx, cy - 3, dome_dk);
+
+    // Blinking coloured lights on underside
+    let blink = (tick / 7) % 3;
+    let light_cols = [Color::Rgb(255, 70, 70), Color::Rgb(70, 255, 70), Color::Rgb(100, 140, 255)];
+    for (i, lx) in [-3isize, 0, 3].iter().enumerate() {
+        set_px(buf, cx + lx, cy + 2, light_cols[(i + blink as usize) % 3]);
+    }
+
+    // Tractor beam — fades in at start of crossing
+    if phase < 35 {
+        let alpha = 1.0 - phase as f64 / 35.0;
+        let beam_h = (ph as f64 * 0.18 * alpha) as isize;
+        for dy in 3..3 + beam_h {
+            let spread = (dy / 5).min(3);
+            for dx in -spread..=spread {
+                let v = hash((cx + dx).unsigned_abs() as u64 * 7 + (cy + dy).unsigned_abs() as u64 * 13 + tick);
+                if v % 3 != 0 {
+                    set_px(buf, cx + dx, cy + dy, Color::Rgb(
+                        (180.0 * alpha) as u8,
+                        (210.0 * alpha) as u8,
+                        (255.0 * alpha) as u8,
+                    ));
+                }
+            }
+        }
+    }
+}
+
 fn fill_stars(buf: &mut PixBuf, pw: usize, ph: usize, tick: u64) {
     for py in 0..ph { for ppx in 0..pw { buf[py][ppx] = Some(Color::Rgb(0, 0, 8)); } }
     let layers: &[(usize, u8, u8, bool)] = &[
@@ -859,6 +979,7 @@ fn fill_stars(buf: &mut PixBuf, pw: usize, ph: usize, tick: u64) {
         if bx + 1 < pw { buf[by][bx+1] = Some(c); }
         if by + 1 < ph { buf[by+1][bx] = Some(c); }
     }
+    draw_ufo(buf, pw, ph, tick);
 }
 
 fn fill_fire(buf: &mut PixBuf, pw: usize, ph: usize, tick: u64) {

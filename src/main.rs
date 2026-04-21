@@ -123,11 +123,8 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<()> 
                             match key.code {
                                 KeyCode::Char('q') => return Ok(()),
                                 KeyCode::Char('c') if key.modifiers == KeyModifiers::CONTROL => return Ok(()),
-                                KeyCode::Esc => {
-                                    timer.apply_config(TimerConfig::default());
-                                    last_beep_sec = None;
+                                KeyCode::Esc if !startup => {
                                     edit_state = None;
-                                    startup = false;
                                 }
                                 KeyCode::Enter => {
                                     let new_cfg = es.to_config();

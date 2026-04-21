@@ -175,7 +175,7 @@ fn draw_edit(f: &mut Frame, es: &EditState, area: Rect, startup: bool) {
 
     let hint_dim  = Style::default().fg(Color::Rgb(60, 60, 60));
     let arrow_sty = Style::default().fg(Color::Yellow);
-    let bot_hint  = if startup { "  Enter: start  Esc: cancel" } else { "  Enter: apply  Esc: cancel" };
+    let bot_hint  = if startup { "  Enter: start" } else { "  Enter: apply  Esc: cancel" };
 
     let mut lines: Vec<Line> = vec![
         Line::from(Span::styled("  Tab: field   ← →: h/m", hint_dim)),
