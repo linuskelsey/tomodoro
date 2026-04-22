@@ -13,6 +13,7 @@ pub struct EditState {
     pub fields: [(u64, u64); 3],  // (hours, minutes) per field
     pub selected: usize,
     pub unit: usize,  // 0=hours, 1=minutes
+    pub typing_buf: String,
 }
 
 impl EditState {
@@ -22,6 +23,7 @@ impl EditState {
             fields: [to_hm(cfg.work_secs), to_hm(cfg.short_break_secs), to_hm(cfg.long_break_secs)],
             selected: 0,
             unit: 1,
+            typing_buf: String::new(),
         }
     }
 

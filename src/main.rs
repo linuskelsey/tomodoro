@@ -121,6 +121,14 @@ fn main() -> io::Result<()> {
         return Ok(());
     }
 
+    if args.iter().any(|a| a == "--help" || a == "-h") {
+        println!(
+            "tomodoro {}\n\nUSAGE:\n    tomodoro [OPTIONS]\n    tomodoro <COMMAND>\n\nOPTIONS:\n    -h, --help               Print this help\n    -V, --version            Print version\n    -u, --use <version>      Launch a specific installed version\n\nCOMMANDS:\n    install <version>        Install a version from crates.io\n    list                     List installed versions",
+            env!("CARGO_PKG_VERSION")
+        );
+        return Ok(());
+    }
+
     match args.get(1).map(|s| s.as_str()) {
         Some("install") => match args.get(2) {
             Some(v) => return cmd_install(v),
@@ -212,12 +220,22 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<()> 
                                     edit_state = None;
                                     startup = false;
                                 }
+                                KeyCode::Char(c) if c.is_ascii_digit() => {
+                                    let max = if es.unit == 0 { 23u64 } else { 59u64 };
+                                    if es.typing_buf.len() >= 2 { es.typing_buf.remove(0); }
+                                    es.typing_buf.push(c);
+                                    let val = es.typing_buf.parse::<u64>().unwrap_or(0).min(max);
+                                    if es.unit == 0 { es.fields[es.selected].0 = val; }
+                                    else { es.fields[es.selected].1 = val; }
+                                }
                                 KeyCode::Tab => {
+                                    es.typing_buf.clear();
                                     es.selected = (es.selected + 1) % 3;
                                 }
-                                KeyCode::Left => { es.unit = 0; }
-                                KeyCode::Right => { es.unit = 1; }
+                                KeyCode::Left => { es.typing_buf.clear(); es.unit = 0; }
+                                KeyCode::Right => { es.typing_buf.clear(); es.unit = 1; }
                                 KeyCode::Up => {
+                                    es.typing_buf.clear();
                                     if es.unit == 0 {
                                         es.fields[es.selected].0 = (es.fields[es.selected].0 + 1).min(23);
                                     } else {
@@ -226,6 +244,7 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<()> 
                                     }
                                 }
                                 KeyCode::Down => {
+                                    es.typing_buf.clear();
                                     if es.unit == 0 {
                                         let h = &mut es.fields[es.selected].0;
                                         if *h > 0 { *h -= 1; }
