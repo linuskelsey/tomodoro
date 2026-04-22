@@ -123,7 +123,7 @@ fn main() -> io::Result<()> {
 
     if args.iter().any(|a| a == "--help" || a == "-h") {
         println!(
-            "tomodoro {}\n\nUSAGE:\n    tomodoro [OPTIONS]\n    tomodoro <COMMAND>\n\nOPTIONS:\n    -h, --help               Print this help\n    -V, --version            Print version\n    -u, --use <version>      Launch a specific installed version\n\nCOMMANDS:\n    install <version>        Install a version from crates.io\n    list                     List installed versions",
+            "tomodoro {}\n\nUSAGE:\n    tomodoro [OPTIONS]\n    tomodoro <COMMAND>\n\nOPTIONS:\n    -h, --help               Print this help\n    -V, --version            Print version\n    -E, --endless            Endless animation mode (no timers, no sounds)\n    -u, --use <version>      Launch a specific installed version\n\nCOMMANDS:\n    install <version>        Install a version from crates.io\n    list                     List installed versions",
             env!("CARGO_PKG_VERSION")
         );
         return Ok(());
@@ -163,7 +163,8 @@ fn main() -> io::Result<()> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    let result = run(&mut terminal);
+    let endless = args.iter().any(|a| a == "--endless" || a == "-E");
+    let result = run(&mut terminal, endless);
 
     disable_raw_mode()?;
     execute!(terminal.backend_mut(), DisableFocusChange, LeaveAlternateScreen)?;
@@ -172,7 +173,7 @@ fn main() -> io::Result<()> {
     result
 }
 
-fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<()> {
+fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool) -> io::Result<()> {
     let audio = audio_thread();
     let mut timer = Timer::new(TimerConfig::default());
     let mut anim = Animation::new();
@@ -181,23 +182,32 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<()> 
     let mut ding_pending: u8 = 0;
     let mut beep_pending: u8 = 0;
     let mut show_help = false;
-    let mut edit_state: Option<EditState> = Some(EditState::from_config(&TimerConfig::default()));
-    let mut startup = true;
+    let mut edit_state: Option<EditState> = if endless { None } else { Some(EditState::from_config(&TimerConfig::default())) };
+    let mut startup = !endless;
     let tick = Duration::from_millis(TICK_MS);
+
+    if endless {
+        timer.toggle(); // start running so anim ticks
+    }
 
     loop {
         terminal.draw(|f| {
-            ui::draw(f, &timer, &anim, show_help, edit_state.as_ref(), startup, volume);
+            ui::draw(f, &timer, &anim, show_help, edit_state.as_ref(), startup, volume, endless);
         })?;
 
-        for _ in 0..ding_pending {
-            play_immediate(SOUND_FOCUS_END, volume);
+        if !endless {
+            for _ in 0..ding_pending {
+                play_immediate(SOUND_FOCUS_END, volume);
+            }
+            ding_pending = 0;
+            for _ in 0..beep_pending {
+                let _ = audio.try_send((SOUND_BEEP, volume));
+            }
+            beep_pending = 0;
+        } else {
+            ding_pending = 0;
+            beep_pending = 0;
         }
-        ding_pending = 0;
-        for _ in 0..beep_pending {
-            let _ = audio.try_send((SOUND_BEEP, volume));
-        }
-        beep_pending = 0;
 
         let deadline = Instant::now() + tick;
         loop {
@@ -205,7 +215,19 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<()> 
             if event::poll(remaining)? {
                 match event::read()? {
                     Event::Key(key) if key.kind == KeyEventKind::Press => {
-                        if let Some(ref mut es) = edit_state {
+                        if endless {
+                            match (key.code, key.modifiers) {
+                                (KeyCode::Char('q'), _)
+                                | (KeyCode::Char('c'), KeyModifiers::CONTROL)
+                                | (KeyCode::Esc, _) => return Ok(()),
+                                (KeyCode::Char(' '), _) => timer.toggle(),
+                                (KeyCode::Right, _) => anim.next_theme(),
+                                (KeyCode::Left, _) => anim.prev_theme(),
+                                (KeyCode::Up, _) => anim.next_mode(),
+                                (KeyCode::Down, _) => anim.prev_mode(),
+                                _ => {}
+                            }
+                        } else if let Some(ref mut es) = edit_state {
                             match key.code {
                                 KeyCode::Char('q') => return Ok(()),
                                 KeyCode::Char('c') if key.modifiers == KeyModifiers::CONTROL => return Ok(()),
@@ -295,18 +317,20 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<()> 
         if timer.running {
             anim.tick();
 
-            if matches!(timer.phase, Phase::ShortBreak | Phase::LongBreak) {
-                let rem = timer.remaining().as_secs();
-                if rem > 0 && rem <= 5 && last_beep_sec != Some(rem) {
-                    last_beep_sec = Some(rem);
-                    beep_pending += 1;
+            if !endless {
+                if matches!(timer.phase, Phase::ShortBreak | Phase::LongBreak) {
+                    let rem = timer.remaining().as_secs();
+                    if rem > 0 && rem <= 5 && last_beep_sec != Some(rem) {
+                        last_beep_sec = Some(rem);
+                        beep_pending += 1;
+                    }
                 }
-            }
 
-            if timer.is_finished() {
-                timer.advance();
-                last_beep_sec = None;
-                ding_pending += 1;
+                if timer.is_finished() {
+                    timer.advance();
+                    last_beep_sec = None;
+                    ding_pending += 1;
+                }
             }
         }
     }

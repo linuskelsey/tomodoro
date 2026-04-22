@@ -36,7 +36,19 @@ On launch, a setup screen lets you choose your focus and break durations. Use `T
 ```sh
 tomodoro --help       # list flags and subcommands
 tomodoro --version    # print version
+tomodoro --endless    # endless animation mode (also -E)
 ```
+
+### Endless mode
+
+`tomodoro -E` runs the animated background full-screen with no timer, no session indicators, no progress bar, and no sounds — pure ambient display.
+
+| Key | Action |
+|-----|--------|
+| `Space` | Pause / resume animation |
+| `←` / `→` | Cycle animation themes |
+| `↑` / `↓` | Cycle render modes |
+| `q` / `Esc` / `Ctrl+C` | Quit |
 
 ## Features
 
@@ -48,6 +60,7 @@ tomodoro --version    # print version
 - **Coloured progress bar** — matches the current theme; uses braille dots in braille mode
 - **Bell sounds** — single bell when a focus session ends; countdown beeps for the last 5 seconds of a break
 - **Phase indicators** — `F` (focus), `B` (short break), `LB` (long break)
+- **Endless mode** — `tomodoro -E` runs animations full-screen with no timer, sounds, or UI chrome; pure ambient display
 - **Version management** — install and switch between old releases with `tomodoro install`, `list`, and `--use`
 
 ## Version management

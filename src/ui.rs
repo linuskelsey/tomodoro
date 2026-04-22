@@ -37,8 +37,12 @@ impl EditState {
     }
 }
 
-pub fn draw(f: &mut Frame, timer: &Timer, anim: &Animation, show_help: bool, edit_state: Option<&EditState>, startup: bool, volume: f32) {
+pub fn draw(f: &mut Frame, timer: &Timer, anim: &Animation, show_help: bool, edit_state: Option<&EditState>, startup: bool, volume: f32, endless: bool) {
     let area = f.area();
+    if endless {
+        draw_animation(f, timer, anim, area);
+        return;
+    }
     let rows = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
