@@ -258,7 +258,7 @@ fn draw_mountains_and_buildings(buf: &mut PixBuf, pw: usize, ph: usize) {
         Color::Rgb((8.0 + frac * 6.0) as u8, (12.0 + frac * 8.0) as u8, (22.0 + frac * 12.0) as u8)
     };
 
-    // Mountains — high contrast blue-grey against dark sky
+    // Mountains
     let m_base = ph * 72 / 100;
     for ppx in 0..pw {
         let xf = ppx as f64 / pw as f64;
@@ -276,13 +276,15 @@ fn draw_mountains_and_buildings(buf: &mut PixBuf, pw: usize, ph: usize) {
         }
     }
 
-    // Medieval buildings — visible warm-grey silhouettes with lit windows
-    let sil = Color::Rgb(32, 34, 52);     // clearly lighter than sky
-    let sil_dk = Color::Rgb(22, 24, 40);  // slightly darker variant for depth
-    let win = Color::Rgb(200, 170, 80);   // warm bright window glow
-    let win_dim = Color::Rgb(120, 100, 40);
+    let win     = Color::Rgb(210, 175, 85);
+    let win_dim = Color::Rgb(125, 103, 42);
+    let beam    = Color::Rgb(48,  32,  16);   // dark oak
+    let mortar  = Color::Rgb(88,  82,  74);   // stone mortar
+    let spire_c = (82u8, 77u8, 70u8);   // dark old stone
+    let plant   = Color::Rgb(42,  95,  35);
+    let pot     = Color::Rgb(140, 72,  32);
 
-    // (x_frac, w_frac, h_frac, style)  style: 0=tower, 1=hall, 2=spire
+    // (x_frac, w_frac, h_frac, style)  0=tower, 1=hall, 2=spire
     let bldgs: &[(f64, f64, f64, u8)] = &[
         (0.00, 0.07, 0.40, 0),
         (0.06, 0.13, 0.26, 1),
@@ -304,10 +306,27 @@ fn draw_mountains_and_buildings(buf: &mut PixBuf, pw: usize, ph: usize) {
         let bh = ((hf * ph as f64) as usize).max(4);
         let by = b_base.saturating_sub(bh) as isize;
 
-        fill_r(buf, bx, by, bw, b_base.saturating_sub(by as usize), sil);
-
+        // Draw walls from building top all the way to ground
+        let wall_bottom = ground_y.min(ph);
         match style {
             0 => {
+                // Tower — light stone with coursed masonry
+                for py in (by as usize)..wall_bottom {
+                    for ppx in (bx as usize)..(bx as usize + bw).min(pw) {
+                        let v   = hash(ppx as u64 * 3 + py as u64 * 7 + 101);
+                        let row = py.wrapping_sub(by as usize);
+                        let is_mortar = row % 3 == 0 || ppx % 4 == (if (row / 3) % 2 == 0 { 0 } else { 2 });
+                        buf[py][ppx] = Some(if is_mortar {
+                            mortar
+                        } else {
+                            Color::Rgb(
+                                158u8.saturating_add((v % 18) as u8),
+                                150u8.saturating_add(((v >> 4) % 14) as u8),
+                                136u8.saturating_add(((v >> 8) % 11) as u8),
+                            )
+                        });
+                    }
+                }
                 // Battlements
                 let merlon_w = (bw / 4).max(1);
                 let crenel_h = (bh / 5).max(1);
@@ -328,20 +347,36 @@ fn draw_mountains_and_buildings(buf: &mut PixBuf, pw: usize, ph: usize) {
                     cx = seg_end;
                 }
                 if bw >= 4 && bh >= 6 {
-                    // Lit window
-                    set_px(buf, bx + bw as isize / 2, by + bh as isize / 3, win);
-                    set_px(buf, bx + bw as isize / 2, by + bh as isize / 3 + 1, win_dim);
+                    let wx = bx + bw as isize / 2;
+                    let wy = by + bh as isize / 3;
+                    set_px(buf, wx, wy,     win);
+                    set_px(buf, wx, wy + 1, win_dim);
                 }
             }
             2 => {
-                // Spire
+                // Spire — dark old stone tower with needle
+                for py in (by as usize)..wall_bottom {
+                    for ppx in (bx as usize)..(bx as usize + bw).min(pw) {
+                        let v = hash(ppx as u64 * 5 + py as u64 * 11 + 303);
+                        buf[py][ppx] = Some(Color::Rgb(
+                            spire_c.0.saturating_add((v % 10) as u8),
+                            spire_c.1.saturating_add(((v >> 4) % 8) as u8),
+                            spire_c.2.saturating_add(((v >> 8) % 7) as u8),
+                        ));
+                    }
+                }
                 let spire_h = (bh * 3 / 4) as isize;
                 let half_bw = (bw as isize / 2).max(1);
                 let cx = bx + bw as isize / 2;
                 for dy in 0..spire_h {
                     let hw = (half_bw as f64 * (spire_h - dy) as f64 / spire_h as f64 * 0.6) as isize;
                     for dx in -hw..=hw {
-                        set_px(buf, cx + dx, by - spire_h + dy, sil_dk);
+                        let v = hash((cx + dx).unsigned_abs() as u64 * 7 + (by - spire_h + dy).unsigned_abs() as u64 * 13 + 404);
+                        set_px(buf, cx + dx, by - spire_h + dy, Color::Rgb(
+                            spire_c.0.saturating_add((v % 8) as u8),
+                            spire_c.1.saturating_add(((v >> 4) % 6) as u8),
+                            spire_c.2.saturating_add(((v >> 8) % 5) as u8),
+                        ));
                     }
                 }
                 if bw >= 3 && bh >= 8 {
@@ -349,60 +384,92 @@ fn draw_mountains_and_buildings(buf: &mut PixBuf, pw: usize, ph: usize) {
                 }
             }
             _ => {
-                // Hall with multiple glowing windows
+                // Hall — half-timbered: cream plaster + dark oak beams
+                // Per-building colour variation seeded from position
+                let bseed = hash(bx.unsigned_abs() as u64 * 31 + 999);
+                let br_off = (bseed % 30) as u8;
+                let bg_off = ((bseed >> 4) % 22) as u8;
+                let bb_off = ((bseed >> 8) % 18) as u8;
+                for py in (by as usize)..wall_bottom {
+                    for ppx in (bx as usize)..(bx as usize + bw).min(pw) {
+                        let v = hash(ppx as u64 * 5 + py as u64 * 9 + 202);
+                        buf[py][ppx] = Some(Color::Rgb(
+                            (175u8.saturating_add(br_off)).saturating_add((v % 12) as u8),
+                            (165u8.saturating_add(bg_off)).saturating_add(((v >> 4) % 10) as u8),
+                            (148u8.saturating_add(bb_off)).saturating_add(((v >> 8) % 8) as u8),
+                        ));
+                    }
+                }
+                // Vertical studs: corners + thirds
+                for &dx in &[0isize, bw as isize / 3, bw as isize * 2 / 3, bw as isize - 1] {
+                    for py in (by as usize)..wall_bottom {
+                        set_px(buf, bx + dx, py as isize, beam);
+                    }
+                }
+                // Horizontal rails: top, thirds
+                for &dy in &[0isize, bh as isize / 3, bh as isize * 2 / 3] {
+                    for ppx in (bx as usize)..(bx as usize + bw).min(pw) {
+                        set_px(buf, ppx as isize, by + dy, beam);
+                    }
+                }
+                // Pitched roof — wide at building top, peak at top
+                let roof_h = (bh / 3).max(2) as isize;
+                let cx_r = bx + bw as isize / 2;
+                for dy in 0..roof_h {
+                    let hw = (bw as f64 * 0.5 * (roof_h - dy) as f64 / roof_h as f64) as isize;
+                    for dx in -hw..=hw {
+                        let v = hash((cx_r + dx).unsigned_abs() as u64 * 3 + (by - dy).unsigned_abs() as u64 * 7 + 505);
+                        let edge = dx.abs() == hw;
+                        set_px(buf, cx_r + dx, by - dy, if edge {
+                            beam
+                        } else {
+                            Color::Rgb(
+                                62u8.saturating_add((v % 12) as u8),
+                                45u8.saturating_add(((v >> 4) % 9) as u8),
+                                30u8.saturating_add(((v >> 8) % 7) as u8),
+                            )
+                        });
+                    }
+                }
+                // Ridge beam at peak
+                set_px(buf, cx_r, by - roof_h, beam);
+                // Windows + plant pots
                 if bw >= 5 && bh >= 5 {
-                    let wy = by + bh as isize / 3;
+                    let wy   = by + bh as isize / 3 + 1;
                     let step = (bw / 3).max(2) as isize;
                     let mut wx = bx + step / 2;
+                    let mut pot_toggle = false;
                     while wx < bx + bw as isize - 1 {
-                        set_px(buf, wx, wy, win);
+                        set_px(buf, wx, wy,     win);
                         set_px(buf, wx, wy + 1, win_dim);
+                        if pot_toggle {
+                            set_px(buf, wx, wy - 1, plant);
+                            set_px(buf, wx, wy + 2, pot);
+                        }
+                        pot_toggle = !pot_toggle;
                         wx += step;
                     }
                 }
             }
         }
-    }
 
-    // Lamppost — foreground left of scene
-    draw_lamppost(buf, pw, ph, b_base);
-}
-
-fn draw_lamppost(buf: &mut PixBuf, pw: usize, ph: usize, ground_y: usize) {
-    let lx     = (pw as f64 * 0.22) as isize;
-    let pole_h = (ph as f64 * 0.40) as usize;
-    let pole_y = (ground_y.saturating_sub(pole_h)) as isize;
-    let iron   = Color::Rgb(45, 42, 50);
-    let glow   = Color::Rgb(240, 200, 100);
-    let glow_d = Color::Rgb(160, 130, 55);
-    let glow_f = Color::Rgb(90,  72,  28);
-
-    // Pole
-    for py in pole_y..ground_y as isize {
-        set_px(buf, lx, py, iron);
-    }
-    // Curved arm at top
-    set_px(buf, lx - 1, pole_y + 1, iron);
-    set_px(buf, lx - 2, pole_y,     iron);
-    set_px(buf, lx - 3, pole_y - 1, iron);
-
-    // Lantern box
-    let lant_x = lx - 4;
-    let lant_y = pole_y - 3;
-    fill_r(buf, lant_x - 1, lant_y, 3, 3, glow);
-
-    // Glow halo radiating outward
-    for dy in -4isize..=4 {
-        for dx in -5isize..=5 {
-            let dist = ((dx * dx + dy * dy * 2) as f64).sqrt();
-            let cx = lant_x + dx;
-            let cy = lant_y + 1 + dy;
-            if dist > 1.5 && dist < 3.5 { set_px(buf, cx, cy, glow_d); }
-            else if dist >= 3.5 && dist < 5.5 { set_px(buf, cx, cy, glow_f); }
+        // Door — all building styles, centered at base
+        let door_w = (bw / 4).max(2);
+        let door_h = (bh / 4).max(3);
+        let door_x = bx + bw as isize / 2 - door_w as isize / 2;
+        let door_top = ground_y as isize - door_h as isize;
+        let door_col = Color::Rgb(14, 10, 6);
+        for py in door_top..ground_y as isize {
+            let row_from_top = (py - door_top) as usize;
+            for dx in 0..door_w as isize {
+                // arch: round top corners on first row
+                let is_corner = row_from_top == 0 && (dx == 0 || dx == door_w as isize - 1);
+                if !is_corner {
+                    set_px(buf, door_x + dx, py, door_col);
+                }
+            }
         }
     }
-    // Re-draw lantern on top of halo
-    fill_r(buf, lant_x - 1, lant_y, 3, 3, glow);
 }
 
 fn trunk_half_w(t: f64, pw: usize) -> isize {
@@ -610,10 +677,10 @@ fn draw_fireplace(buf: &mut PixBuf, pw: usize, ph: usize) {
     let side_w   = (pw * 19 / 100).max(4);
     let mantel_h = (ph * 11 / 100).max(2);
     let hearth_y = ph.saturating_sub((ph * 9 / 100).max(2));
+    let fire_x0  = side_w;
+    let fire_x1  = pw.saturating_sub(side_w);
 
-    let mortar   = Color::Rgb(108, 102, 96);
-    let stone: (u8, u8, u8) = (118, 115, 108);
-    let stone_dk = Color::Rgb(88,  85,  80);
+    let mortar   = Color::Rgb(52, 47, 42);
 
     let brick_h = (ph / 18).max(2);
     let brick_w = (side_w / 3).max(3);
@@ -627,10 +694,17 @@ fn draw_fireplace(buf: &mut PixBuf, pw: usize, ph: usize) {
                 let off  = if row % 2 == 0 { 0 } else { brick_w / 2 };
                 let col_b = (ppx - xs + off) % brick_w;
                 let row_b = (py - mantel_h) % brick_h;
+                let v = hash(((row * 13 + (ppx - xs + off) / brick_w) as u64).wrapping_add(77));
                 let c = if row_b == 0 || col_b == 0 {
                     mortar
+                } else if row_b == 1 {
+                    // shadow just below mortar joint
+                    Color::Rgb(
+                        90u8.saturating_add((v % 15) as u8),
+                        45u8.saturating_add(((v >> 4) % 10) as u8),
+                        30u8.saturating_add(((v >> 8) % 8) as u8),
+                    )
                 } else {
-                    let v = hash(((row * 13 + (ppx - xs + off) / brick_w) as u64).wrapping_add(77));
                     Color::Rgb(
                         135u8.saturating_add((v % 25) as u8),
                         72u8.saturating_add(((v >> 4) % 18) as u8),
@@ -642,35 +716,111 @@ fn draw_fireplace(buf: &mut PixBuf, pw: usize, ph: usize) {
         }
     }
 
-    // Mantelpiece — stone shelf with a slight overhang shadow underneath
+    // Mantelpiece — warm oak wood grain
     for py in 0..mantel_h {
         for ppx in 0..pw {
             if py >= buf.len() || ppx >= buf[0].len() { continue; }
-            let v = hash(((ppx / 4) as u64).wrapping_add((py / 2 * 97) as u64));
-            buf[py][ppx] = Some(if py == mantel_h - 1 {
-                stone_dk
+            let grain = hash((ppx as u64 / 2).wrapping_add((py as u64 * 3).wrapping_mul(17)));
+            let grain_line = (py * pw + ppx / 3) % 7 == 0;
+            let (r, g, b) = if py == mantel_h - 1 {
+                (52u8, 31u8, 12u8)  // dark underside shadow
+            } else if grain_line {
+                (72u8.saturating_add((grain % 10) as u8), 43u8.saturating_add((grain % 8) as u8), 16u8.saturating_add((grain % 5) as u8))
             } else {
-                Color::Rgb(
-                    stone.0.saturating_add((v % 18) as u8),
-                    stone.1.saturating_add(((v >> 4) % 14) as u8),
-                    stone.2.saturating_add(((v >> 8) % 12) as u8),
-                )
-
-            });
+                (88u8.saturating_add((grain % 18) as u8), 54u8.saturating_add((grain % 13) as u8), 22u8.saturating_add((grain % 9) as u8))
+            };
+            buf[py][ppx] = Some(Color::Rgb(r, g, b));
         }
     }
 
-    // Hearth floor — stone flags
+    // Hearth floor — stone flags outside, carpet in centre
+    let carpet_x0 = fire_x0.saturating_sub(fire_x0 / 3);
+    let carpet_x1 = (fire_x1 + (pw - fire_x1) / 3).min(pw);
     for py in hearth_y..ph {
         for ppx in 0..pw {
             if py >= buf.len() || ppx >= buf[0].len() { continue; }
-            let v = hash(((ppx / 5) as u64).wrapping_add((py * 53) as u64));
-            buf[py][ppx] = Some(Color::Rgb(
-                78u8.saturating_add((v % 18) as u8),
-                76u8.saturating_add(((v >> 4) % 14) as u8),
-                72u8.saturating_add(((v >> 8) % 11) as u8),
-            ));
+            let on_carpet = ppx >= carpet_x0 && ppx < carpet_x1;
+            if on_carpet {
+                let cx = ppx - carpet_x0;
+                let cy = py - hearth_y;
+                let cw = carpet_x1 - carpet_x0;
+                let ch = ph - hearth_y;
+                let border = cx == 0 || cx == cw.saturating_sub(1) || cy == 0 || cy == ch.saturating_sub(1);
+                let inner_border = cx == 2 || cx == cw.saturating_sub(3) || cy == 2 || cy == ch.saturating_sub(3);
+                let v = hash(ppx as u64 * 7 + py as u64 * 13 + 8888);
+                let noise = (v % 12) as u8;
+                buf[py][ppx] = Some(if border || inner_border {
+                    Color::Rgb(130u8.saturating_add(noise / 2), 40u8.saturating_add(noise / 4), 18u8.saturating_add(noise / 4))
+                } else {
+                    Color::Rgb(105u8.saturating_add(noise), 28u8.saturating_add(noise / 3), 18u8.saturating_add(noise / 3))
+                });
+            } else {
+                let v = hash(((ppx / 5) as u64).wrapping_add((py * 53) as u64));
+                buf[py][ppx] = Some(Color::Rgb(
+                    78u8.saturating_add((v % 18) as u8),
+                    76u8.saturating_add(((v >> 4) % 14) as u8),
+                    72u8.saturating_add(((v >> 8) % 11) as u8),
+                ));
+            }
         }
+    }
+
+    // Logs — two overlapping logs sitting at the base of the fire
+    let log_h  = (ph * 5 / 100).max(2);
+    let log_y0 = hearth_y.saturating_sub(log_h + 1);
+    let fire_w = fire_x1 - fire_x0;
+    let log_hw = fire_w / 2;
+    let logs: &[(isize, u8, u8, u8)] = &[
+        (fire_x0 as isize + fire_w as isize / 3,     58, 32, 12),
+        (fire_x0 as isize + fire_w as isize * 2 / 3, 48, 26, 10),
+    ];
+    for &(cx, lr, lg, lb) in logs {
+        for dy in 0..log_h {
+            let py = log_y0 + dy;
+            if py >= ph { continue; }
+            let ry = dy as f64 / log_h as f64;
+            let half_w = (log_hw as f64 * (1.0 - (ry * 2.0 - 1.0).powi(2)).sqrt()) as isize;
+            for dx in -half_w..=half_w {
+                let px = cx + dx;
+                if px < fire_x0 as isize || px as usize >= fire_x1 { continue; }
+                let v = hash(px as u64 * 5 + py as u64 * 11 + 3030);
+                let bark = (v % 3 == 0) as u8 * 12;
+                let ember = if dy == 0 { 30u8 } else { 0u8 };
+                buf[py][px as usize] = Some(Color::Rgb(
+                    lr.saturating_add(bark).saturating_add(ember),
+                    lg.saturating_add(bark / 2),
+                    lb.saturating_add(bark / 3),
+                ));
+            }
+        }
+    }
+
+    // Iron grate — vertical bars across lower portion of fire opening
+    let grate_h  = (ph * 10 / 100).max(3);
+    let grate_y0 = hearth_y.saturating_sub(grate_h);
+    let bar_w    = 1usize;
+    let gap_w    = (fire_x1 - fire_x0) / 10;
+    let gap_w    = gap_w.max(2);
+    let iron_hi  = Color::Rgb(48, 45, 42);
+    let iron_dk  = Color::Rgb(22, 20, 18);
+    // horizontal rail at top and bottom of grate
+    for ppx in fire_x0..fire_x1 {
+        if grate_y0 < buf.len() { buf[grate_y0][ppx] = Some(iron_hi); }
+        if hearth_y < buf.len() && hearth_y < ph { buf[hearth_y.min(ph-1)][ppx] = Some(iron_dk); }
+    }
+    // vertical bars
+    let mut bx = fire_x0 + gap_w / 2;
+    while bx + bar_w <= fire_x1 {
+        for py in grate_y0..hearth_y {
+            if py >= buf.len() { continue; }
+            for dx in 0..bar_w {
+                let px = bx + dx;
+                if px < buf[0].len() {
+                    buf[py][px] = Some(if dx == 0 { iron_hi } else { iron_dk });
+                }
+            }
+        }
+        bx += gap_w;
     }
 }
 
@@ -1024,7 +1174,7 @@ fn fill_fire(buf: &mut PixBuf, pw: usize, ph: usize, tick: u64) {
         let cn = (hn % 100) as f64 / 100.0 * 0.30 - 0.09;
         let crackle = (ca * (1.0 - blend_f) + cb * blend_f) * 0.75 + cn * 0.25;
 
-        let height = ((arch + crackle).clamp(0.1, 1.0) * 0.82 * fire_ph as f64) as usize;
+        let height = ((arch + crackle).clamp(0.1, 1.0) * 0.58 * fire_ph as f64) as usize;
         let top    = hearth_y.saturating_sub(height);
 
         for py in top..hearth_y {
@@ -1086,21 +1236,6 @@ fn draw_snow_landscape(buf: &mut PixBuf, pw: usize, ph: usize) {
         let noise = (hash(ppx as u64 * 17 + 333) % 4) as f64;
         ((base_ground as f64) - h1 - h2 - noise).max(0.0) as usize
     };
-
-    // Dark mid-ground fill — per-column so no rectangular edges
-    let terrain_top_base = ph * 66 / 100;
-    for ppx in 0..pw {
-        let gy = ground_at(ppx);
-        let xf = ppx as f64 / pw as f64;
-        let tt_offset = ((xf * pi * 1.8).sin() * 0.5 + 0.5) * ph as f64 * 0.04;
-        let tt = (terrain_top_base as f64 - tt_offset).max(0.0) as usize;
-        for py in tt..gy {
-            if py < buf.len() && ppx < buf[0].len() {
-                let d = (py - tt) as f64 / (gy - tt).max(1) as f64;
-                buf[py][ppx] = Some(Color::Rgb((5.0 + d*5.0) as u8, (7.0 + d*7.0) as u8, (16.0 + d*10.0) as u8));
-            }
-        }
-    }
 
     // Helper: draw a mountain range with gradient base
     let draw_range = |buf: &mut PixBuf, base: usize, amp1: f64, freq1: f64, phase1: f64,
@@ -1191,7 +1326,12 @@ fn fill_aurora(buf: &mut PixBuf, pw: usize, ph: usize, tick: u64) {
             if dist < width {
                 let intensity = (1.0 - dist / width).powi(2);
                 let band_h = (aurora_h as f64 * (0.4 + intensity * 0.5)) as usize;
-                let bottom = aurora_h + (((ppx as f64 * 0.15 + t * 0.5 + b).sin() * 0.06) * ph as f64) as usize;
+                let bottom_f = aurora_h as f64
+                    + (b * 1.7 + t * 0.05).sin()               * ph as f64 * 0.10
+                    + (ppx as f64 * 0.03 + t * 0.18 + b * 2.1).sin() * ph as f64 * 0.07
+                    + (ppx as f64 * 0.09 + t * 0.31 + b * 0.9).sin() * ph as f64 * 0.04
+                    + (ppx as f64 * 0.23 + t * 0.14 + b * 3.3).sin() * ph as f64 * 0.02;
+                let bottom = (bottom_f as isize).clamp(0, ph as isize) as usize;
                 let top = bottom.saturating_sub(band_h);
                 let (r, g, bl) = band_colors[band as usize % band_colors.len()];
                 for py in top..bottom.min(ph) {

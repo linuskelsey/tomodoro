@@ -16,7 +16,7 @@ Requires Rust — install via [rustup](https://rustup.rs) if you don't have it.
 
 ## Usage
 
-On launch, a setup screen lets you choose your focus and break durations. Use `Tab` to move between fields, `←`/`→` to select hours or minutes, and `↑`/`↓` to change the value. Press `Enter` to start.
+On launch, a setup screen lets you choose your focus and break durations. Use `Tab` to move between fields, `←`/`→` to select hours or minutes, and `↑`/`↓` to change the value — or just type a number directly. Press `Enter` to start, `Esc` to quit.
 
 | Key | Action |
 |-----|--------|
@@ -28,18 +28,27 @@ On launch, a setup screen lets you choose your focus and break durations. Use `T
 | `←` / `→` | Cycle animation themes |
 | `↑` / `↓` | Cycle render modes (Half → Quarter → Braille) |
 | `?` | Toggle help overlay |
+| `Esc` | Cancel edit / quit |
 | `q` / `Ctrl+C` | Quit |
+
+### CLI flags
+
+```sh
+tomodoro --help       # list flags and subcommands
+tomodoro --version    # print version
+```
 
 ## Features
 
-- **Custom durations** — set focus, short break, and long break times on startup or mid-session with `e`; hours and minutes controlled with arrow keys
+- **Custom durations** — set focus, short break, and long break times on startup or mid-session with `e`; type values directly or use arrow keys
 - **Volume control** — adjust bell and beep volume with `[`/`]`, displayed in the header
 - **Session tracker** — dots in the top-right show progress toward a long break (every 4 sessions)
-- **6 animated themes** — waves, rain, falling leaves, starfield (with UFO), fireplace, aurora borealis; all hand-crafted scenes with detailed foreground elements
+- **6 animated themes** — waves, rain, falling leaves, starfield, fireplace, aurora borealis; all hand-crafted scenes with detailed foreground elements
 - **3 render modes** — half-block, quarter-block, or braille; increasing pixel density per terminal cell
 - **Coloured progress bar** — matches the current theme; uses braille dots in braille mode
 - **Bell sounds** — single bell when a focus session ends; countdown beeps for the last 5 seconds of a break
 - **Phase indicators** — `F` (focus), `B` (short break), `LB` (long break)
+- **Version management** — install and switch between old releases with `tomodoro install`, `list`, and `--use`
 
 ## Version management
 

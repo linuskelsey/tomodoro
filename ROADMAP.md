@@ -11,16 +11,17 @@
 ## Done
 
 - Version management — `tomodoro install <version>`, `tomodoro list`, `tomodoro --use <version>` to run older crates.io releases alongside current
+- CLI flags — `--help` / `-h` prints usage; `--version` / `-V` prints version
 - Custom timer durations (startup screen + mid-session edit)
-- Timer arrow control — Tab cycles fields, ←/→ selects h/m, ↑/↓ edits value
+- Timer input — Tab cycles fields, ←/→ selects h/m, ↑/↓ edits value, digits type directly; Esc quits startup or cancels edit
 - Volume control (`[`/`]` keys, displayed in header)
 - 6 animated themes, 3 render modes
 - Bell sounds + countdown beeps
 - Session tracker
 - Hand-crafted animation scenes:
-  - Rain — medieval skyline, mountains, lamppost, cobblestone floor, puddle ripples
+  - Rain — medieval skyline with half-timbered halls, stone towers, spires, plant pots, mountains, cobblestone floor, puddle ripples
   - Leaves — full maple trunk, shimenawa + shide charms, background autumn trees, falling leaves
   - Waves — rocking boat, multi-layer wave body, cross-chop and specular glints
-  - Fire — crackling fireplace with depth shadow, sparks, stone mantelpiece
+  - Fire — crackling fireplace, iron grate, wooden logs, oak mantelpiece, burgundy carpet
   - Stars — scrolling parallax starfield with sporadic UFO
-  - Aurora — borealis bands over snowy rolling hills and mountains
+  - Aurora — borealis bands with organic lower edges over snowy rolling hills and mountains
