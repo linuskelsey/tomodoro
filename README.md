@@ -41,6 +41,34 @@ On launch, a setup screen lets you choose your focus and break durations. Use `T
 - **Bell sounds** — single bell when a focus session ends; countdown beeps for the last 5 seconds of a break
 - **Phase indicators** — `F` (focus), `B` (short break), `LB` (long break)
 
+## Version management
+
+Install a specific older version alongside the current one:
+
+```sh
+tomodoro install 0.2.2
+```
+
+This pulls that version from crates.io and stores it at `~/.local/share/tomodoro/0.2.2/bin/tomodoro`. It does not affect the current binary on your PATH.
+
+List all installed versions:
+
+```sh
+tomodoro list
+```
+
+Run a specific version:
+
+```sh
+tomodoro --use 0.2.2
+```
+
+To remove an old version, delete its directory:
+
+```sh
+rm -rf ~/.local/share/tomodoro/0.2.2
+```
+
 ## Requirements
 
 - A terminal with true colour and Unicode support (Ghostty, Kitty, WezTerm, etc.)

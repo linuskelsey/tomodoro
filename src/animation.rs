@@ -916,11 +916,11 @@ fn draw_ufo(buf: &mut PixBuf, pw: usize, ph: usize, tick: u64) {
     for dx in -1isize..=1 { set_px(buf, cx + dx, cy - 2, dome_hi); }
     set_px(buf, cx, cy - 3, dome_dk);
 
-    // Blinking coloured lights on underside
-    let blink = (tick / 7) % 3;
-    let light_cols = [Color::Rgb(255, 70, 70), Color::Rgb(70, 255, 70), Color::Rgb(100, 140, 255)];
-    for (i, lx) in [-3isize, 0, 3].iter().enumerate() {
-        set_px(buf, cx + lx, cy + 2, light_cols[(i + blink as usize) % 3]);
+    // Dim pulsing lights on underside
+    let pulse = (tick as f64 * 0.12).sin() * 0.5 + 0.5;
+    let v = (140.0 + pulse * 50.0) as u8;
+    for lx in [-3isize, 0, 3] {
+        set_px(buf, cx + lx, cy + 2, Color::Rgb(v, v, v));
     }
 
     // Tractor beam — fades in at start of crossing

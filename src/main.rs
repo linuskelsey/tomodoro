@@ -53,10 +53,88 @@ fn play_immediate(bytes: &'static [u8], volume: f32) {
     });
 }
 
+fn versions_dir() -> std::path::PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".into());
+    std::path::PathBuf::from(home).join(".local/share/tomodoro")
+}
+
+fn cmd_install(version: &str) -> io::Result<()> {
+    let root = versions_dir().join(version);
+    let status = std::process::Command::new("cargo")
+        .args([
+            "install",
+            &format!("tomodoro@{}", version),
+            "--root",
+            root.to_str().unwrap_or("."),
+        ])
+        .status()?;
+    if !status.success() {
+        std::process::exit(status.code().unwrap_or(1));
+    }
+    Ok(())
+}
+
+fn cmd_list() -> io::Result<()> {
+    let current = env!("CARGO_PKG_VERSION");
+    let base = versions_dir();
+    let mut versions: Vec<String> = if let Ok(entries) = std::fs::read_dir(&base) {
+        entries
+            .filter_map(|e| e.ok())
+            .filter(|e| e.path().is_dir())
+            .filter_map(|e| e.file_name().into_string().ok())
+            .collect()
+    } else {
+        vec![]
+    };
+    versions.sort();
+    println!("* {} (current)", current);
+    for v in versions {
+        println!("  {}", v);
+    }
+    Ok(())
+}
+
+fn cmd_use(version: &str) -> io::Result<()> {
+    let binary = versions_dir().join(version).join("bin").join("tomodoro");
+    if !binary.exists() {
+        eprintln!("tomodoro {} not installed. Run: tomodoro install {}", version, version);
+        std::process::exit(1);
+    }
+    let mut args_iter = std::env::args().skip(1).peekable();
+    let mut forward: Vec<String> = Vec::new();
+    while let Some(a) = args_iter.next() {
+        if a == "--use" || a == "-u" {
+            args_iter.next();
+        } else {
+            forward.push(a);
+        }
+    }
+    use std::os::unix::process::CommandExt;
+    Err(std::process::Command::new(&binary).args(&forward).exec())
+}
+
 fn main() -> io::Result<()> {
-    if std::env::args().any(|a| a == "--version" || a == "-V") {
+    let args: Vec<String> = std::env::args().collect();
+
+    if args.iter().any(|a| a == "--version" || a == "-V") {
         println!("{}", env!("CARGO_PKG_VERSION"));
         return Ok(());
+    }
+
+    match args.get(1).map(|s| s.as_str()) {
+        Some("install") => match args.get(2) {
+            Some(v) => return cmd_install(v),
+            None => { eprintln!("Usage: tomodoro install <version>"); return Ok(()); }
+        },
+        Some("list") => return cmd_list(),
+        _ => {}
+    }
+
+    if let Some(pos) = args.iter().position(|a| a == "--use" || a == "-u") {
+        match args.get(pos + 1) {
+            Some(v) => return cmd_use(v),
+            None => { eprintln!("Usage: tomodoro --use <version>"); return Ok(()); }
+        }
     }
 
     let default_hook = std::panic::take_hook();
@@ -123,7 +201,8 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<()> 
                             match key.code {
                                 KeyCode::Char('q') => return Ok(()),
                                 KeyCode::Char('c') if key.modifiers == KeyModifiers::CONTROL => return Ok(()),
-                                KeyCode::Esc if !startup => {
+                                KeyCode::Esc if startup => return Ok(()),
+                                KeyCode::Esc => {
                                     edit_state = None;
                                 }
                                 KeyCode::Enter => {
