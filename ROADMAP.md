@@ -2,10 +2,24 @@
 
 ## Planned
 
-- **alsa-sys Ubuntu/Mint fix** — resolve build failure on Debian-based distros missing `libasound2-dev`; likely optional audio feature flag
+### Major
+- **New animation set** — full redraw of all themes from scratch; two-tone (black + terminal foreground colour); higher resolution than current; dithered/ordered-halftone style for atmospheric scenes, chunky pixel art for character/creature scenes; both styles suit KGP/sixel rendering cleanly
 - **Music / ambience** — background audio during sessions; looping ambient tracks per phase
   - Fire crackling loop for fire animation
+
+### Minor
+- **Session history persistence** — save completed sessions to `~/.local/share/tomodoro/history.json`; show daily counts, streaks, total hours
+- **Task labeling** — type task name before/during session; shown in header; logged to history
+- **Config file** — `~/.config/tomodoro/config.toml` for defaults (theme, durations, volume) so no CLI flags needed daily
 - **Detail scaling** — different levels of scene detail for different terminal pane sizes
+- **Desktop notifications** — `notify-send` when phase ends, useful when tmux pane is offscreen/hidden
+- **Fortune popup** — call `fortune` at end of each focus session; overlay popup dismissible with `q`/`Esc`
+- **Systemd inhibit during work** — call `systemd-inhibit` to block sleep/screensaver while work session active; release on break
+
+### Patch
+- **alsa-sys Ubuntu/Mint fix** — resolve build failure on Debian-based distros missing `libasound2-dev`; likely optional audio feature flag
+
+
 ## Done
 
 - Endless mode — `tomodoro -E` / `tomodoro --endless`; full-screen animation, no timer/sounds; space pauses, ←/→/↑/↓ cycle themes and render modes
