@@ -1087,7 +1087,7 @@ dependencies = [
 
 [[package]]
 name = "tomodoro"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "crossterm",
  "ratatui",

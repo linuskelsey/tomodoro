@@ -12,6 +12,9 @@
 - **Task labeling** — type task name before/during session; shown in header; logged to history
 - **Config file** — `~/.config/tomodoro/config.toml` for defaults (theme, durations, volume) so no CLI flags needed daily
 - **Detail scaling** — different levels of scene detail for different terminal pane sizes
+- **New scenes** — two additional animated themes:
+  - Blossom — cherry blossom orchard beneath Mount Fuji viewed from a Japanese-style balcony; falling petals, distant snow-capped peak
+  - Sunset — mountain range reflected in a lake at dusk; purple and orange chromatic sky, shifting light bands
 - **Desktop notifications** — `notify-send` when phase ends, useful when tmux pane is offscreen/hidden
 - **Fortune popup** — call `fortune` at end of each focus session; overlay popup dismissible with `q`/`Esc`
 - **Systemd inhibit during work** — call `systemd-inhibit` to block sleep/screensaver while work session active; release on break

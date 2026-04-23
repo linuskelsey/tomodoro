@@ -178,6 +178,7 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool) -> 
     let mut timer = Timer::new(TimerConfig::default());
     let mut anim = Animation::new();
     let mut volume: f32 = 1.0;
+    let mut vol_flash: Option<(bool, Instant)> = None;
     let mut last_beep_sec: Option<u64> = None;
     let mut ding_pending: u8 = 0;
     let mut beep_pending: u8 = 0;
@@ -192,7 +193,11 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool) -> 
 
     loop {
         terminal.draw(|f| {
-            ui::draw(f, &timer, &anim, show_help, edit_state.as_ref(), startup, volume, endless);
+            let fl = vol_flash.map_or((false, false), |(right, t)| {
+                let lit = t.elapsed() < Duration::from_millis(200);
+                (!right && lit, right && lit)
+            });
+            ui::draw(f, &timer, &anim, show_help, edit_state.as_ref(), startup, volume, endless, fl);
         })?;
 
         if !endless {
@@ -290,14 +295,18 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool) -> 
                                 }
                                 (KeyCode::Char(' '), _) => timer.toggle(),
                                 (KeyCode::Char('n'), _) => {
-                                    let was_work = timer.phase == Phase::Work;
-                                    timer.advance();
+                                    if timer.advance() { ding_pending += 1; }
                                     last_beep_sec = None;
-                                    if was_work { ding_pending += 1; }
                                 }
                                 (KeyCode::Char('r'), _) => timer.reset(),
-                                (KeyCode::Char(']'), _) => volume = (volume + 0.1).min(1.0),
-                                (KeyCode::Char('['), _) => volume = (volume - 0.1).max(0.0),
+                                (KeyCode::Char(']'), _) => {
+                                    volume = ((volume * 10.0 + 1.0).round() / 10.0).min(1.0);
+                                    vol_flash = Some((true, Instant::now()));
+                                }
+                                (KeyCode::Char('['), _) => {
+                                    volume = ((volume * 10.0 - 1.0).round() / 10.0).max(0.0);
+                                    vol_flash = Some((false, Instant::now()));
+                                }
                                 (KeyCode::Right, _) => anim.next_theme(),
                                 (KeyCode::Left, _) => anim.prev_theme(),
                                 (KeyCode::Up, _) => anim.next_mode(),

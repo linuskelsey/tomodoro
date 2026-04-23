@@ -37,7 +37,7 @@ impl EditState {
     }
 }
 
-pub fn draw(f: &mut Frame, timer: &Timer, anim: &Animation, show_help: bool, edit_state: Option<&EditState>, startup: bool, volume: f32, endless: bool) {
+pub fn draw(f: &mut Frame, timer: &Timer, anim: &Animation, show_help: bool, edit_state: Option<&EditState>, startup: bool, volume: f32, endless: bool, vol_flash: (bool, bool)) {
     let area = f.area();
     if endless {
         draw_animation(f, timer, anim, area);
@@ -52,9 +52,9 @@ pub fn draw(f: &mut Frame, timer: &Timer, anim: &Animation, show_help: bool, edi
         ])
         .split(area);
 
-    draw_header(f, timer, rows[0], volume);
+    draw_header(f, timer, rows[0], volume, vol_flash);
     draw_animation(f, timer, anim, rows[1]);
-    draw_progress(f, timer, anim, rows[2], volume);
+    draw_progress(f, timer, anim, rows[2]);
 
     if show_help {
         draw_help(f, area);
@@ -64,7 +64,7 @@ pub fn draw(f: &mut Frame, timer: &Timer, anim: &Animation, show_help: bool, edi
     }
 }
 
-fn draw_header(f: &mut Frame, timer: &Timer, area: Rect, volume: f32) {
+fn draw_header(f: &mut Frame, timer: &Timer, area: Rect, volume: f32, vol_flash: (bool, bool)) {
     let color = phase_color(&timer.phase);
     let phase_str = match timer.phase {
         Phase::Work => "F",
@@ -79,12 +79,14 @@ fn draw_header(f: &mut Frame, timer: &Timer, area: Rect, volume: f32) {
         .constraints([Constraint::Fill(1), Constraint::Length(5), Constraint::Fill(1)])
         .split(area);
 
+    let dim = Color::Rgb(70, 70, 70);
+    let bracket = |lit: bool| Style::default().fg(if lit { Color::White } else { dim });
     let left = Line::from(vec![
         Span::styled(phase_str, Style::default().fg(color).add_modifier(Modifier::BOLD)),
-        Span::styled(
-            format!("  vol: {}% [/]", (volume * 100.0).round() as u8),
-            Style::default().fg(Color::Rgb(70, 70, 70)),
-        ),
+        Span::styled(format!("  vol: {}%  ", (volume * 100.0).round() as u8), Style::default().fg(dim)),
+        Span::styled("[", bracket(vol_flash.0)),
+        Span::styled(" ", Style::default().fg(dim)),
+        Span::styled("]", bracket(vol_flash.1)),
     ]);
     f.render_widget(Paragraph::new(left), cols[0]);
     f.render_widget(
@@ -104,8 +106,7 @@ fn draw_animation(f: &mut Frame, timer: &Timer, anim: &Animation, area: Rect) {
     f.render_widget(Paragraph::new(lines).alignment(Alignment::Center), area);
 }
 
-fn draw_progress(f: &mut Frame, timer: &Timer, anim: &Animation, area: Rect, volume: f32) {
-    let _ = volume;
+fn draw_progress(f: &mut Frame, timer: &Timer, anim: &Animation, area: Rect) {
     let hint = " ? for help";
     let hint_width = hint.len() as u16 + 1;
     let cols = Layout::default()
