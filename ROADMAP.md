@@ -10,7 +10,15 @@
 ### Minor
 - **Session history persistence** — save completed sessions to `~/.local/share/tomodoro/history.json`; show daily counts, streaks, total hours
 - **Task labeling** — type task name before/during session; shown in header; logged to history
-- **Config file** — `~/.config/tomodoro/config.toml` for defaults (theme, durations, volume) so no CLI flags needed daily
+- **Config file** — `~/.config/tomodoro/config.toml` for persistent defaults so no CLI flags needed daily; planned keys:
+  - `theme` — starting animation (0–7)
+  - `render_mode` — half / quarter / braille
+  - `focus`, `short_break`, `long_break` — default durations
+  - `volume` — starting volume level
+  - `long_break_interval` — sessions per long break (default 4)
+  - `auto_start` — skip startup screen and begin immediately
+  - `countdown_beeps` — number of end-of-break beep seconds (default 5)
+  - `notifications` — enable/disable `notify-send` on phase end
 - **Detail scaling** — different levels of scene detail for different terminal pane sizes
 - **Desktop notifications** — `notify-send` when phase ends, useful when tmux pane is offscreen/hidden
 - **Fortune popup** — call `fortune` at end of each focus session; overlay popup dismissible with `q`/`Esc`
