@@ -12,9 +12,6 @@
 - **Task labeling** — type task name before/during session; shown in header; logged to history
 - **Config file** — `~/.config/tomodoro/config.toml` for defaults (theme, durations, volume) so no CLI flags needed daily
 - **Detail scaling** — different levels of scene detail for different terminal pane sizes
-- **New scenes** — two additional animated themes:
-  - Blossom — cherry blossom orchard beneath Mount Fuji viewed from a Japanese-style balcony; falling petals, distant snow-capped peak
-  - Sunset — mountain range reflected in a lake at dusk; purple and orange chromatic sky, shifting light bands
 - **Desktop notifications** — `notify-send` when phase ends, useful when tmux pane is offscreen/hidden
 - **Fortune popup** — call `fortune` at end of each focus session; overlay popup dismissible with `q`/`Esc`
 - **Systemd inhibit during work** — call `systemd-inhibit` to block sleep/screensaver while work session active; release on break
@@ -31,13 +28,15 @@
 - Custom timer durations (startup screen + mid-session edit)
 - Timer input — Tab cycles fields, ←/→ selects h/m, ↑/↓ edits value, digits type directly; Esc quits startup or cancels edit
 - Volume control (`[`/`]` keys, displayed in header)
-- 6 animated themes, 3 render modes
+- 8 animated themes, 3 render modes
 - Bell sounds + countdown beeps
 - Session tracker
-- Hand-crafted animation scenes:
+- AI-crafted animation scenes:
   - Rain — medieval skyline with half-timbered halls, stone towers, spires, plant pots, mountains, cobblestone floor, puddle ripples
   - Leaves — full maple trunk, shimenawa + shide charms, background autumn trees, falling leaves
   - Waves — rocking boat, multi-layer wave body, cross-chop and specular glints
   - Fire — crackling fireplace, iron grate, wooden logs, oak mantelpiece, burgundy carpet
   - Stars — scrolling parallax starfield with sporadic UFO
   - Aurora — borealis bands with organic lower edges over snowy rolling hills and mountains
+  - Blossom — cherry blossom orchard beneath Mount Fuji viewed from a Japanese-style balcony; falling petals, shoji frame, tea setup
+  - Sunset — mountain range reflected in a lake at dusk; purple-to-orange sky, undulating grass edge, specular shimmer

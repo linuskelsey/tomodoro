@@ -5,6 +5,7 @@ A terminal Pomodoro timer with animated backgrounds.
 ![demo](demo.gif)
 
 ![Rust](https://img.shields.io/badge/rust-stable-orange)
+[![crates.io](https://img.shields.io/crates/v/tomodoro)](https://crates.io/crates/tomodoro)
 
 ## Install
 
@@ -55,7 +56,7 @@ tomodoro --endless    # endless animation mode (also -E)
 - **Custom durations** — set focus, short break, and long break times on startup or mid-session with `e`; type values directly or use arrow keys
 - **Volume control** — adjust bell and beep volume with `[`/`]`, displayed in the header
 - **Session tracker** — dots in the top-right show progress toward a long break (every 4 sessions)
-- **6 animated themes** — waves, rain, falling leaves, starfield, fireplace, aurora borealis; all hand-crafted scenes with detailed foreground elements
+- **8 animated themes** — waves, rain, falling leaves, starfield, fireplace, aurora borealis, cherry blossom, sunset; all hand-crafted scenes with detailed foreground elements
 - **3 render modes** — half-block, quarter-block, or braille; increasing pixel density per terminal cell
 - **Coloured progress bar** — matches the current theme; uses braille dots in braille mode
 - **Bell sounds** — single bell when a focus session ends; countdown beeps for the last 5 seconds of a break
