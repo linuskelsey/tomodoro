@@ -19,7 +19,7 @@ fn draw_cherry_tree_b(buf: &mut PixBuf, ph: usize, tx: isize, base_y: usize, sca
     let trk   = Color::Rgb(65, 38, 20);
     let trk_d = Color::Rgb(44, 25, 10);
     let th    = (scale * ph as f64 * 0.115).max(5.0) as isize;
-    let tw    = (scale * 2.5).max(1.0) as isize;
+    let tw    = (scale * 1.5).max(1.0) as isize;
     let bl    = (scale * ph as f64 * 0.09).max(4.0) as isize;
     for dy in 0..th {
         let jit = ((hash(seed + dy as u64 * 7) % 3) as isize - 1) / 2;
@@ -48,7 +48,7 @@ fn draw_cherry_tree_b(buf: &mut PixBuf, ph: usize, tx: isize, base_y: usize, sca
                 set_px(buf, px + w, py, if bw > 0 && w.abs() == bw { trk_d } else { trk });
             }
         }
-        let cr = (bln * 11 / 20).max(3);
+        let cr = (bln * 7 / 20).max(2);
         draw_blossom_cluster(buf, tx + edx, by + edy, cr, seed + so);
         if !has_sub { continue; }
         let mx = tx + edx / 2; let my = by + edy / 2; let sl = bln * 11 / 20;
@@ -57,7 +57,7 @@ fn draw_cherry_tree_b(buf: &mut PixBuf, ph: usize, tx: isize, base_y: usize, sca
             for i in 0..sl {
                 set_px(buf, mx + sd * bl / 4 * i / sl, my - bl * 2 / 5 * i / sl, trk_d);
             }
-            let scr = (sl * 2 / 5).max(2);
+            let scr = (sl * 1 / 4).max(1);
             draw_blossom_cluster(buf, mx + sd * bl / 4, my - bl * 2 / 5, scr, seed + so + 600);
         }
     }
@@ -155,66 +155,93 @@ pub(super) fn fill_blossom(buf: &mut PixBuf, pw: usize, ph: usize, tick: u64) {
         }
     }
 
+    // Tree geometry defined early so mountain peak can sit 10px above tree line
+    let tree_base = ph * 76 / 100 + 2;
+    let trees: &[(f64, f64)] = &[
+        (0.08, 0.68), (0.20, 0.82), (0.35, 0.93), (0.51, 0.88),
+        (0.66, 0.84), (0.79, 0.76), (0.93, 0.64),
+    ];
+    let max_sf   = trees.iter().map(|&(_, sf)| sf).fold(0.0f64, f64::max);
+    let th_max   = (max_sf * ph as f64 * 0.115).max(5.0) as isize;
+    let bl_max   = (max_sf * ph as f64 * 0.09).max(4.0) as isize;
+    let tree_line = tree_base as isize - th_max - bl_max;
+
     // Mount Fuji — stone body first, snow overlay second
     let fcx   = pw as isize * 38 / 100;
-    let ftop  = ph * 12 / 100;
+    let ftop  = (tree_line - 10).max(0) as usize;
     let fbase = horizon_y;
     let fh    = fbase.saturating_sub(ftop);
 
-    // Concave slope profile (t^1.35 — gentle at base, steeper near peak)
-    let hw = |t: f64, spread: f64| -> isize {
-        (t.powf(1.35) * spread * pw as f64) as isize
+    // t=0 at peak, t=1 at base. t^0.55: grows fast near 0 → blunt peak, not needle.
+    // Left base reaches x=0, right keeps same asymmetry ratio (0.28/0.19 ≈ 1.47).
+    let profile = |t: f64, spread: f64| -> isize {
+        (t.powf(0.55) * spread * pw as f64) as isize
     };
-    // Per-row edge jitter
-    let row_jit = |seed: u64| -> isize { (hash(seed) % 5) as isize - 2 };
+    // Smooth edge: only commit jitter when both neighbours agree → ±1 max
+    let edge_n = |seed: u64| -> isize {
+        let a = (hash(seed)     % 3) as isize - 1;
+        let b = (hash(seed + 1) % 3) as isize - 1;
+        if a == b { a } else { 0 }
+    };
 
-    // Pass 1 — stone
+    // Pass 1 — full stone body
     for py in ftop..fbase {
         let t        = (py - ftop) as f64 / fh.max(1) as f64;
-        let left_hw  = hw(t, 0.29) + row_jit(py as u64 * 13 + 91);
-        let right_hw = hw(t, 0.20) + row_jit(py as u64 * 17 + 43);
+        let left_hw  = profile(t, 0.28) + edge_n(py as u64 * 13 + 91);
+        let right_hw = profile(t, 0.19) + edge_n(py as u64 * 17 + 43);
         for dx in -left_hw..=right_hw {
             let ppxi = fcx + dx;
             if ppxi < 0 || ppxi as usize >= pw { continue; }
             let ppx = ppxi as usize;
             let v   = hash(ppx as u64 * 3 + py as u64 * 7 + 222);
             let n   = (v % 8) as f64;
-            let is_shadow = dx > right_hw * 3 / 5 && t > 0.18;
-            let sf  = if is_shadow { 0.76 } else { 1.0 };
+            let is_shadow = dx > right_hw / 2 && t > 0.15;
+            let sf  = if is_shadow { 0.74 } else { 1.0 };
             buf[py][ppx] = Some(Color::Rgb(
-                ((60.0 + t * 22.0 + n) * sf).min(255.0) as u8,
-                ((70.0 + t * 24.0 + n) * sf).min(255.0) as u8,
-                ((96.0 + t * 30.0 + n) * sf).min(255.0) as u8,
+                ((58.0 + t * 20.0 + n) * sf).min(255.0) as u8,
+                ((68.0 + t * 22.0 + n) * sf).min(255.0) as u8,
+                ((92.0 + t * 28.0 + n) * sf).min(255.0) as u8,
             ));
         }
     }
 
-    // Pass 2 — snow, column-first so we always stay inside mountain bounds
-    // Per-column snow line: base fraction + noise + occasional streaks downward
-    for ppx in 0..pw {
-        let dx0    = ppx as isize - fcx;
-        let hseed  = hash(ppx as u64 * 41 + 5555);
-        let base_f = 0.26 + (hseed % 22) as f64 * 0.004;   // 0.26–0.35
-        let streak = (hash(ppx as u64 * 7 + 2222) % 7) == 0;
-        let snow_f = if streak {
-            base_f + 0.07 + (hash(ppx as u64 + 9999) % 9) as f64 * 0.01
-        } else {
-            base_f
-        };
-        let snow_line = ftop + (fh as f64 * snow_f.min(0.50)) as usize;
+    // Pass 2 — snow: probabilistic over the stone pixel set, row-first.
+    // prob=1 near peak, quadratic falloff below threshold.
+    // ~1-in-7 columns are gullies: deeper threshold + wider fade → visible streaks.
+    for py in ftop..fbase {
+        let t        = (py - ftop) as f64 / fh.max(1) as f64;
+        if t > 0.56 { break; }
+        let left_hw  = profile(t, 0.28) + edge_n(py as u64 * 13 + 91);
+        let right_hw = profile(t, 0.19) + edge_n(py as u64 * 17 + 43);
 
-        for py in ftop..snow_line.min(fbase) {
-            let t        = (py - ftop) as f64 / fh.max(1) as f64;
-            let left_hw  = hw(t, 0.29) + row_jit(py as u64 * 13 + 91);
-            let right_hw = hw(t, 0.20) + row_jit(py as u64 * 17 + 43);
-            if dx0 < -left_hw || dx0 > right_hw { continue; }
-            let v  = hash(ppx as u64 * 5 + py as u64 * 11 + 333);
-            let n  = (v % 6) as f64;
-            let is_shadow = dx0 > right_hw * 3 / 5;
-            let s  = if is_shadow { 12.0 } else { 0.0 };
+        for dx in -left_hw..=right_hw {
+            let ppxi = fcx + dx;
+            if ppxi < 0 || ppxi as usize >= pw { continue; }
+            let ppx = ppxi as usize;
+
+            let gully     = hash(ppx as u64 * 31 + 7777) % 7 == 0;
+            let threshold = if gully { 0.30 } else { 0.22 };
+            let fade_w    = if gully { 0.22 } else { 0.14 };
+
+            let prob = if t <= threshold {
+                1.0
+            } else if t <= threshold + fade_w {
+                let f = (t - threshold) / fade_w;
+                (1.0 - f).powi(2)
+            } else {
+                0.0
+            };
+            if prob <= 0.0 { continue; }
+
+            let v = hash(ppx as u64 * 17 + py as u64 * 23 + 555);
+            if prob < 1.0 && (v % 1000) as f64 >= prob * 1000.0 { continue; }
+
+            let n  = (hash(ppx as u64 * 5 + py as u64 * 11 + 333) % 6) as f64;
+            let is_shadow = dx > right_hw / 2;
+            let s  = if is_shadow { 14.0 } else { 0.0 };
             buf[py][ppx] = Some(Color::Rgb(
-                ((238.0 + n * 0.5 - s).max(0.0).min(255.0)) as u8,
-                ((243.0 + n * 0.4 - s).max(0.0).min(255.0)) as u8,
+                ((237.0 + n * 0.5 - s).max(0.0).min(255.0)) as u8,
+                ((242.0 + n * 0.4 - s).max(0.0).min(255.0)) as u8,
                 ((252.0             - s).max(0.0).min(255.0)) as u8,
             ));
         }
@@ -235,11 +262,6 @@ pub(super) fn fill_blossom(buf: &mut PixBuf, pw: usize, ph: usize, tick: u64) {
     }
 
     // Cherry blossom orchard — branched trees
-    let tree_base = ph * 76 / 100;
-    let trees: &[(f64, f64)] = &[
-        (0.08, 0.68), (0.20, 0.82), (0.35, 0.93), (0.51, 0.88),
-        (0.66, 0.84), (0.79, 0.76), (0.93, 0.64),
-    ];
     for (i, &(xf, sf)) in trees.iter().enumerate() {
         let tx = (xf * pw as f64) as isize;
         draw_cherry_tree_b(buf, ph, tx, tree_base, sf, (i as u64 + 1) * 10000);
