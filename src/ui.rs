@@ -76,7 +76,7 @@ fn draw_header(f: &mut Frame, timer: &Timer, area: Rect, volume: f32, vol_flash:
 
     let cols = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Fill(1), Constraint::Length(5), Constraint::Fill(1)])
+        .constraints([Constraint::Fill(1), Constraint::Length(7), Constraint::Fill(1)])
         .split(area);
 
     let dim = Color::Rgb(70, 70, 70);
