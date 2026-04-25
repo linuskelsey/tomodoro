@@ -13,6 +13,7 @@
 - **Config file** — `~/.config/tomodoro/config.toml` for persistent defaults so no CLI flags needed daily; planned keys:
   - `theme` — starting animation (0–7)
   - `render_mode` — half / quarter / braille
+  - `focus_theme` / `break_theme` — different default animations per phase; ←/→ during a phase sets that phase's theme
   - `focus`, `short_break`, `long_break` — default durations
   - `volume` — starting volume level
   - `long_break_interval` — sessions per long break (default 4)
