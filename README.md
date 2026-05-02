@@ -51,15 +51,36 @@ tomodoro --endless    # endless animation mode (also -E)
 | `↑` / `↓` | Cycle render modes |
 | `q` / `Esc` / `Ctrl+C` | Quit |
 
+## Config
+
+On first launch, `~/.config/tomodoro/config.toml` is created with all options commented out. Uncomment and edit to set persistent defaults:
+
+```toml
+theme = 2              # starting animation (0–7): waves, rain, leaves, stars, fire, aurora, blossom, sunset
+focus_theme = 4        # animation for focus phase
+break_theme = 0        # animation for break phases
+render_mode = "half"   # half | quarter | braille
+focus = 25             # minutes
+short_break = 5
+long_break = 15
+volume = 0.8           # 0.0–1.0
+long_break_interval = 4
+auto_start = false     # skip startup screen
+countdown_beeps = 5    # beep seconds before break ends
+notifications = false  # notify-send on phase end
+```
+
 ## Features
 
 - **Custom durations** — set focus, short break, and long break times on startup or mid-session with `e`; type values directly or use arrow keys
 - **Volume control** — adjust bell and beep volume with `[`/`]`, displayed in the header
 - **Session tracker** — dots in the top-right show progress toward a long break (every 4 sessions)
-- **8 animated themes** — waves, rain, falling leaves, starfield, fireplace, aurora borealis, cherry blossom, sunset; all hand-crafted scenes with detailed foreground elements
+- **Config file** — `~/.config/tomodoro/config.toml` auto-created on first launch; set persistent defaults for themes, durations, volume, and more
+- **Desktop notifications** — optional `notify-send` alerts on phase end; enable with `notifications = true` in config
+- **8 animated themes** — waves, rain, falling leaves, starfield, fireplace, aurora borealis, cherry blossom, sunset; all hand-crafted scenes with detailed foreground elements; set different themes for focus and break phases
 - **3 render modes** — half-block, quarter-block, or braille; increasing pixel density per terminal cell
 - **Coloured progress bar** — matches the current theme; uses braille dots in braille mode
-- **Bell sounds** — single bell when a focus session ends; countdown beeps for the last 5 seconds of a break
+- **Bell sounds** — single bell when a focus session ends; countdown beeps for the last N seconds of a break (configurable)
 - **Phase indicators** — `F` (focus), `B` (short break), `LB` (long break)
 - **Endless mode** — `tomodoro -E` runs animations full-screen with no timer, sounds, or UI chrome; pure ambient display
 - **Version management** — install and switch between old releases with `tomodoro install`, `list`, and `--use`

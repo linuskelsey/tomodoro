@@ -1,4 +1,5 @@
 mod animation;
+mod config;
 mod timer;
 mod ui;
 
@@ -15,7 +16,8 @@ use crossterm::{
 };
 use ratatui::{backend::CrosstermBackend, Terminal};
 
-use animation::Animation;
+use animation::{Animation, RenderMode};
+use config::AppConfig;
 use timer::{Phase, Timer, TimerConfig};
 use ui::EditState;
 
@@ -164,7 +166,8 @@ fn main() -> io::Result<()> {
     let mut terminal = Terminal::new(backend)?;
 
     let endless = args.iter().any(|a| a == "--endless" || a == "-E");
-    let result = run(&mut terminal, endless);
+    let cfg = AppConfig::load();
+    let result = run(&mut terminal, endless, cfg);
 
     disable_raw_mode()?;
     execute!(terminal.backend_mut(), DisableFocusChange, LeaveAlternateScreen)?;
@@ -173,18 +176,33 @@ fn main() -> io::Result<()> {
     result
 }
 
-fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool) -> io::Result<()> {
+fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg: AppConfig) -> io::Result<()> {
     let audio = audio_thread();
-    let mut timer = Timer::new(TimerConfig::default());
-    let mut anim = Animation::new();
-    let mut volume: f32 = 1.0;
+    let timer_cfg = TimerConfig {
+        work_secs: cfg.focus * 60,
+        short_break_secs: cfg.short_break * 60,
+        long_break_secs: cfg.long_break * 60,
+        long_break_interval: cfg.long_break_interval,
+    };
+    let render_mode = match cfg.render_mode.as_str() {
+        "quarter" => RenderMode::Quarter,
+        "braille" => RenderMode::Braille,
+        _ => RenderMode::Half,
+    };
+    let focus_theme = cfg.focus_theme.unwrap_or(cfg.theme);
+    let break_theme = cfg.break_theme.unwrap_or(cfg.theme);
+    let countdown_beeps = cfg.countdown_beeps;
+    let notifications = cfg.notifications;
+    let mut timer = Timer::new(timer_cfg.clone());
+    let mut anim = Animation::new_with(focus_theme, break_theme, render_mode);
+    let mut volume: f32 = cfg.volume.clamp(0.0, 1.0);
     let mut vol_flash: Option<(bool, Instant)> = None;
     let mut last_beep_sec: Option<u64> = None;
     let mut ding_pending: u8 = 0;
     let mut beep_pending: u8 = 0;
     let mut show_help = false;
-    let mut edit_state: Option<EditState> = if endless { None } else { Some(EditState::from_config(&TimerConfig::default())) };
-    let mut startup = !endless;
+    let mut edit_state: Option<EditState> = if endless || cfg.auto_start { None } else { Some(EditState::from_config(&timer_cfg)) };
+    let mut startup = !endless && !cfg.auto_start;
     let tick = Duration::from_millis(TICK_MS);
 
     if endless {
@@ -226,8 +244,8 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool) -> 
                                 | (KeyCode::Char('c'), KeyModifiers::CONTROL)
                                 | (KeyCode::Esc, _) => return Ok(()),
                                 (KeyCode::Char(' '), _) => timer.toggle(),
-                                (KeyCode::Right, _) => anim.next_theme(),
-                                (KeyCode::Left, _) => anim.prev_theme(),
+                                (KeyCode::Right, _) => anim.next_theme(&timer.phase),
+                                (KeyCode::Left, _) => anim.prev_theme(&timer.phase),
                                 (KeyCode::Up, _) => anim.next_mode(),
                                 (KeyCode::Down, _) => anim.prev_mode(),
                                 _ => {}
@@ -307,8 +325,8 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool) -> 
                                     volume = ((volume * 10.0 - 1.0).round() / 10.0).max(0.0);
                                     vol_flash = Some((false, Instant::now()));
                                 }
-                                (KeyCode::Right, _) => anim.next_theme(),
-                                (KeyCode::Left, _) => anim.prev_theme(),
+                                (KeyCode::Right, _) => anim.next_theme(&timer.phase),
+                                (KeyCode::Left, _) => anim.prev_theme(&timer.phase),
                                 (KeyCode::Up, _) => anim.next_mode(),
                                 (KeyCode::Down, _) => anim.prev_mode(),
                                 _ => {}
@@ -329,13 +347,22 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool) -> 
             if !endless {
                 if matches!(timer.phase, Phase::ShortBreak | Phase::LongBreak) {
                     let rem = timer.remaining().as_secs();
-                    if rem > 0 && rem <= 5 && last_beep_sec != Some(rem) {
+                    if rem > 0 && rem <= countdown_beeps && last_beep_sec != Some(rem) {
                         last_beep_sec = Some(rem);
                         beep_pending += 1;
                     }
                 }
 
                 if timer.is_finished() {
+                    if notifications {
+                        let msg = match timer.phase {
+                            Phase::Work => "Focus session complete! Time for a break.",
+                            Phase::ShortBreak | Phase::LongBreak => "Break over. Back to work!",
+                        };
+                        let _ = std::process::Command::new("notify-send")
+                            .args(["🍅 tomodoro", msg])
+                            .spawn();
+                    }
                     timer.advance();
                     last_beep_sec = None;
                     ding_pending += 1;

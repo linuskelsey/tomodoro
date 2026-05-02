@@ -33,6 +33,7 @@ impl EditState {
             work_secs: to_secs(self.fields[0]),
             short_break_secs: to_secs(self.fields[1]),
             long_break_secs: to_secs(self.fields[2]),
+            ..TimerConfig::default()
         }
     }
 }
@@ -122,7 +123,7 @@ fn draw_progress(f: &mut Frame, timer: &Timer, anim: &Animation, area: Rect) {
     let area = cols[0];
     let width = area.width as usize;
     let progress = timer.progress();
-    let filled_color = anim.theme_color();
+    let filled_color = anim.theme_color(&timer.phase);
     let empty_color = Color::Rgb(35, 35, 35);
 
     let line = if anim.render_mode == RenderMode::Braille {

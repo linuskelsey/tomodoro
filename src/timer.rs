@@ -1,17 +1,16 @@
 use std::time::{Duration, Instant};
 
-const SESSIONS_BEFORE_LONG: u32 = 4;
-
 #[derive(Debug, Clone)]
 pub struct TimerConfig {
     pub work_secs: u64,
     pub short_break_secs: u64,
     pub long_break_secs: u64,
+    pub long_break_interval: u32,
 }
 
 impl Default for TimerConfig {
     fn default() -> Self {
-        Self { work_secs: 25 * 60, short_break_secs: 5 * 60, long_break_secs: 15 * 60 }
+        Self { work_secs: 25 * 60, short_break_secs: 5 * 60, long_break_secs: 15 * 60, long_break_interval: 4 }
     }
 }
 
@@ -94,7 +93,7 @@ impl Timer {
         }
         self.phase = match self.phase {
             Phase::Work => {
-                if self.sessions_completed % SESSIONS_BEFORE_LONG == 0 {
+                if self.sessions_completed % self.config.long_break_interval == 0 {
                     Phase::LongBreak
                 } else {
                     Phase::ShortBreak

@@ -279,29 +279,60 @@ const THEMES: &[Theme] = &[
 // ── Public Animation struct ───────────────────────────────────────────────────
 
 pub struct Animation {
-    theme_idx: usize,
+    focus_theme: usize,
+    break_theme: usize,
     pub render_mode: RenderMode,
     tick_count: u64,
 }
 
 impl Animation {
-    pub fn new() -> Self {
-        Self { theme_idx: 0, render_mode: RenderMode::Half, tick_count: 0 }
+    pub fn new_with(focus_theme: usize, break_theme: usize, render_mode: RenderMode) -> Self {
+        Self {
+            focus_theme: focus_theme % THEMES.len(),
+            break_theme: break_theme % THEMES.len(),
+            render_mode,
+            tick_count: 0,
+        }
     }
 
     pub fn tick(&mut self) { self.tick_count += 1; }
 
-    pub fn next_theme(&mut self) { self.theme_idx = (self.theme_idx + 1) % THEMES.len(); }
-    pub fn prev_theme(&mut self) { self.theme_idx = (self.theme_idx + THEMES.len() - 1) % THEMES.len(); }
+    fn active_theme(&self, phase: &crate::timer::Phase) -> usize {
+        match phase {
+            crate::timer::Phase::Work => self.focus_theme,
+            _ => self.break_theme,
+        }
+    }
+
+    pub fn next_theme(&mut self, phase: &crate::timer::Phase) {
+        let idx = self.active_theme(phase);
+        let next = (idx + 1) % THEMES.len();
+        match phase {
+            crate::timer::Phase::Work => self.focus_theme = next,
+            _ => self.break_theme = next,
+        }
+    }
+
+    pub fn prev_theme(&mut self, phase: &crate::timer::Phase) {
+        let idx = self.active_theme(phase);
+        let prev = (idx + THEMES.len() - 1) % THEMES.len();
+        match phase {
+            crate::timer::Phase::Work => self.focus_theme = prev,
+            _ => self.break_theme = prev,
+        }
+    }
+
     pub fn next_mode(&mut self)  { self.render_mode = self.render_mode.next(); }
     pub fn prev_mode(&mut self)  { self.render_mode = self.render_mode.prev(); }
 
-    pub fn theme_color(&self) -> Color { THEMES[self.theme_idx].color }
+    pub fn theme_color(&self, phase: &crate::timer::Phase) -> Color {
+        THEMES[self.active_theme(phase)].color
+    }
 
-    pub fn render_lines(&self, _phase: &crate::timer::Phase, char_w: usize, char_h: usize) -> Vec<Line<'static>> {
+    pub fn render_lines(&self, phase: &crate::timer::Phase, char_w: usize, char_h: usize) -> Vec<Line<'static>> {
         if char_w == 0 || char_h == 0 { return vec![]; }
         let mode = self.render_mode;
-        let theme = &THEMES[self.theme_idx];
+        let theme = &THEMES[self.active_theme(phase)];
         let (pw, ph) = (mode.pw(char_w), mode.ph(char_h));
         let mut buf = new_buf(pw, ph);
         (theme.fill)(&mut buf, pw, ph, self.tick_count);
