@@ -149,6 +149,17 @@ fn main() -> io::Result<()> {
         }
     }
 
+    let known_flags = ["--endless", "-E"];
+    for arg in args.iter().skip(1) {
+        if arg.starts_with('-') && !known_flags.contains(&arg.as_str()) {
+            eprintln!("unrecognised flag: {}\nRun 'tomodoro --help' for usage.", arg);
+            return Ok(());
+        } else if !arg.starts_with('-') {
+            eprintln!("unrecognised command: {}\nRun 'tomodoro --help' for usage.", arg);
+            return Ok(());
+        }
+    }
+
     let default_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
         let _ = crossterm::terminal::disable_raw_mode();
