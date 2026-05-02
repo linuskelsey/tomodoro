@@ -287,7 +287,7 @@ fn draw_label_input(f: &mut Frame, ls: &LabelState, area: Rect) {
     f.render_widget(Clear, popup);
     f.render_widget(
         Paragraph::new(line)
-            .block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(Color::DarkGray)).title(" task label ")),
+            .block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(Color::DarkGray)).title(" task label ").title_bottom(Line::from(Span::styled(" Enter: confirm  Esc: cancel ", Style::default().fg(Color::Rgb(60, 60, 60)))).right_aligned())),
         popup,
     );
 }
