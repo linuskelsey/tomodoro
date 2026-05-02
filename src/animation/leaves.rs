@@ -29,11 +29,11 @@ fn draw_autumn_tree_b(buf: &mut PixBuf, ph: usize, tx: isize, base_y: usize, sca
     let trk   = Color::Rgb(32, 18, 7);
     let trk_d = Color::Rgb(20, 10, 3);
     let th    = (scale * ph as f64 * 0.115).max(5.0) as isize;
-    let tw    = (scale * 2.5).max(1.0) as isize;
+    let tw    = (scale * 0.75).max(1.0) as isize;
     let bl    = (scale * ph as f64 * 0.09).max(4.0) as isize;
     for dy in 0..th {
         let jit = ((hash(seed + dy as u64 * 7) % 3) as isize - 1) / 2;
-        let w   = (tw as f64 * (1.0 - dy as f64 / th as f64 * 0.45)).max(1.0) as isize;
+        let w   = (tw as f64 * (1.0 - dy as f64 / th as f64 * 0.15)).max(1.0) as isize;
         for dx in -w..=w {
             set_px(buf, tx + dx + jit, base_y as isize - dy,
                    if dx.abs() == w { trk_d } else { trk });
