@@ -56,6 +56,23 @@ fn play_immediate(bytes: &'static [u8], volume: f32) {
     });
 }
 
+fn start_inhibit() -> Option<std::process::Child> {
+    std::process::Command::new("systemd-inhibit")
+        .args(["--what=sleep:idle", "--who=tomodoro", "--why=Focus session", "--mode=block", "sleep", "infinity"])
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .ok()
+}
+
+fn sync_inhibit(inhibit: &mut Option<std::process::Child>, active: bool) {
+    match (inhibit.is_some(), active) {
+        (false, true)  => { *inhibit = start_inhibit(); }
+        (true,  false) => { if let Some(mut c) = inhibit.take() { let _ = c.kill(); } }
+        _ => {}
+    }
+}
+
 fn versions_dir() -> std::path::PathBuf {
     let home = std::env::var("HOME").unwrap_or_else(|_| ".".into());
     std::path::PathBuf::from(home).join(".local/share/tomodoro")
@@ -218,6 +235,7 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
     let mut label_state: Option<LabelState> = None;
     let mut task_label: Option<String> = None;
     let mut startup = !endless && !cfg.auto_start;
+    let mut inhibit: Option<std::process::Child> = None;
     let tick = Duration::from_millis(TICK_MS);
 
     if endless {
@@ -257,7 +275,7 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                             match (key.code, key.modifiers) {
                                 (KeyCode::Char('q'), _)
                                 | (KeyCode::Char('c'), KeyModifiers::CONTROL)
-                                | (KeyCode::Esc, _) => return Ok(()),
+                                | (KeyCode::Esc, _) => { sync_inhibit(&mut inhibit, false); return Ok(()); }
                                 (KeyCode::Char(' '), _) => timer.toggle(),
                                 (KeyCode::Right, _) => anim.next_theme(&timer.phase),
                                 (KeyCode::Left, _) => anim.prev_theme(&timer.phase),
@@ -331,7 +349,10 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                         } else {
                             match (key.code, key.modifiers) {
                                 (KeyCode::Char('q'), _)
-                                | (KeyCode::Char('c'), KeyModifiers::CONTROL) => return Ok(()),
+                                | (KeyCode::Char('c'), KeyModifiers::CONTROL) => {
+                                    sync_inhibit(&mut inhibit, false);
+                                    return Ok(());
+                                }
                                 (KeyCode::Esc, _) if show_help => show_help = false,
                                 (KeyCode::Esc, _) => return Ok(()),
                                 (KeyCode::Char('?'), _) => show_help = !show_help,
@@ -342,12 +363,19 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                                 (KeyCode::Char('t'), _) => {
                                     label_state = Some(LabelState { text: task_label.clone().unwrap_or_default() });
                                 }
-                                (KeyCode::Char(' '), _) => timer.toggle(),
+                                (KeyCode::Char(' '), _) => {
+                                    timer.toggle();
+                                    sync_inhibit(&mut inhibit, timer.running && timer.phase == Phase::Work);
+                                }
                                 (KeyCode::Char('n'), _) => {
                                     if timer.advance() { ding_pending += 1; }
                                     last_beep_sec = None;
+                                    sync_inhibit(&mut inhibit, timer.running && timer.phase == Phase::Work);
                                 }
-                                (KeyCode::Char('r'), _) => timer.reset(),
+                                (KeyCode::Char('r'), _) => {
+                                    timer.reset();
+                                    sync_inhibit(&mut inhibit, timer.running && timer.phase == Phase::Work);
+                                }
                                 (KeyCode::Char(']'), _) => {
                                     volume = ((volume * 10.0 + 1.0).round() / 10.0).min(1.0);
                                     vol_flash = Some((true, Instant::now()));
@@ -401,6 +429,7 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                     timer.advance();
                     last_beep_sec = None;
                     ding_pending += 1;
+                    sync_inhibit(&mut inhibit, timer.running && timer.phase == Phase::Work);
                 }
             }
         }
