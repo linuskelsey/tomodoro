@@ -95,6 +95,7 @@ rm -rf ~/.local/share/tomodoro/0.2.2
 ## Requirements
 
 - A terminal with true colour and Unicode support (Ghostty, Kitty, WezTerm, etc.)
+- **Linux (Debian/Ubuntu/Mint):** `libasound2-dev` required for audio — install with `sudo apt install libasound2-dev`
 
 ## Contributing
 
