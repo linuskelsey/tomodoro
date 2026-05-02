@@ -25,6 +25,7 @@ On launch, a setup screen lets you choose your focus and break durations. Use `T
 | `n` | Skip to next phase |
 | `r` | Restart current phase |
 | `e` | Edit timer durations |
+| `t` | Set task label |
 | `[` / `]` | Volume down / up |
 | `←` / `→` | Cycle animation themes |
 | `↑` / `↓` | Cycle render modes (Half → Quarter → Braille) |
@@ -38,6 +39,7 @@ On launch, a setup screen lets you choose your focus and break durations. Use `T
 tomodoro --help       # list flags and subcommands
 tomodoro --version    # print version
 tomodoro --endless    # endless animation mode (also -E)
+tomodoro history      # show session history
 ```
 
 ### Endless mode
@@ -77,7 +79,9 @@ notifications = false  # notify-send on phase end
 - **Session tracker** — dots in the top-right show progress toward a long break (every 4 sessions)
 - **Config file** — `~/.config/tomodoro/config.toml` auto-created on first launch; set persistent defaults for themes, durations, volume, and more
 - **Desktop notifications** — optional `notify-send` alerts on phase end; enable with `notifications = true` in config
-- **8 animated themes** — waves, rain, falling leaves, starfield, fireplace, aurora borealis, cherry blossom, sunset; all hand-crafted scenes with detailed foreground elements; set different themes for focus and break phases
+- **Task labeling** — press `t` mid-session to name the current task; shown in the header; logged with each completed session
+- **Session history** — completed focus sessions saved to `~/.local/share/tomodoro/history.json`; run `tomodoro history` to see totals and task breakdown
+- **8 animated themes** — waves, rain, falling leaves, starfield, fireplace, aurora borealis, cherry blossom, sunset; all AI-crafted scenes with detailed foreground elements; set different themes for focus and break phases
 - **3 render modes** — half-block, quarter-block, or braille; increasing pixel density per terminal cell
 - **Coloured progress bar** — matches the current theme; uses braille dots in braille mode
 - **Bell sounds** — single bell when a focus session ends; countdown beeps for the last N seconds of a break (configurable)

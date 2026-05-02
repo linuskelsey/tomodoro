@@ -1,5 +1,6 @@
 mod animation;
 mod config;
+mod history;
 mod timer;
 mod ui;
 
@@ -19,7 +20,7 @@ use ratatui::{backend::CrosstermBackend, Terminal};
 use animation::{Animation, RenderMode};
 use config::AppConfig;
 use timer::{Phase, Timer, TimerConfig};
-use ui::EditState;
+use ui::{EditState, LabelState};
 
 const TICK_MS: u64 = 100;
 const SOUND_FOCUS_END: &[u8] = include_bytes!("../sounds/complete.oga");
@@ -137,6 +138,7 @@ fn main() -> io::Result<()> {
             None => { eprintln!("Usage: tomodoro install <version>"); return Ok(()); }
         },
         Some("list") => return cmd_list(),
+        Some("history") => { history::print_history(); return Ok(()); },
         _ => {}
     }
 
@@ -202,6 +204,8 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
     let mut beep_pending: u8 = 0;
     let mut show_help = false;
     let mut edit_state: Option<EditState> = if endless || cfg.auto_start { None } else { Some(EditState::from_config(&timer_cfg)) };
+    let mut label_state: Option<LabelState> = None;
+    let mut task_label: Option<String> = None;
     let mut startup = !endless && !cfg.auto_start;
     let tick = Duration::from_millis(TICK_MS);
 
@@ -215,7 +219,7 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                 let lit = t.elapsed() < Duration::from_millis(200);
                 (!right && lit, right && lit)
             });
-            ui::draw(f, &timer, &anim, show_help, edit_state.as_ref(), startup, volume, endless, fl);
+            ui::draw(f, &timer, &anim, show_help, edit_state.as_ref(), label_state.as_ref(), startup, volume, endless, fl, task_label.as_deref());
         })?;
 
         if !endless {
@@ -300,6 +304,19 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                                 }
                                 _ => {}
                             }
+                        } else if let Some(ref mut ls) = label_state {
+                            match key.code {
+                                KeyCode::Enter => {
+                                    let trimmed = ls.text.trim().to_string();
+                                    task_label = if trimmed.is_empty() { None } else { Some(trimmed) };
+                                    label_state = None;
+                                }
+                                KeyCode::Esc => { label_state = None; }
+                                KeyCode::Char('c') if key.modifiers == KeyModifiers::CONTROL => return Ok(()),
+                                KeyCode::Backspace => { ls.text.pop(); }
+                                KeyCode::Char(c) => { ls.text.push(c); }
+                                _ => {}
+                            }
                         } else {
                             match (key.code, key.modifiers) {
                                 (KeyCode::Char('q'), _)
@@ -310,6 +327,9 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                                 _ if show_help => show_help = false,
                                 (KeyCode::Char('e'), _) => {
                                     edit_state = Some(EditState::from_config(&timer.config));
+                                }
+                                (KeyCode::Char('t'), _) => {
+                                    label_state = Some(LabelState { text: task_label.clone().unwrap_or_default() });
                                 }
                                 (KeyCode::Char(' '), _) => timer.toggle(),
                                 (KeyCode::Char('n'), _) => {
@@ -362,6 +382,10 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                         let _ = std::process::Command::new("notify-send")
                             .args(["🍅 tomodoro", msg])
                             .spawn();
+                    }
+                    if timer.phase == Phase::Work {
+                        let dur_mins = timer.config.work_secs / 60;
+                        history::log_session(dur_mins, task_label.as_deref());
                     }
                     timer.advance();
                     last_beep_sec = None;

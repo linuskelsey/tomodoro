@@ -9,6 +9,10 @@ use ratatui::{
 use crate::animation::{Animation, RenderMode};
 use crate::timer::{Phase, Timer, TimerConfig};
 
+pub struct LabelState {
+    pub text: String,
+}
+
 pub struct EditState {
     pub fields: [(u64, u64); 3],  // (hours, minutes) per field
     pub selected: usize,
@@ -38,7 +42,7 @@ impl EditState {
     }
 }
 
-pub fn draw(f: &mut Frame, timer: &Timer, anim: &Animation, show_help: bool, edit_state: Option<&EditState>, startup: bool, volume: f32, endless: bool, vol_flash: (bool, bool)) {
+pub fn draw(f: &mut Frame, timer: &Timer, anim: &Animation, show_help: bool, edit_state: Option<&EditState>, label_state: Option<&LabelState>, startup: bool, volume: f32, endless: bool, vol_flash: (bool, bool), task_label: Option<&str>) {
     let area = f.area();
     if endless {
         draw_animation(f, timer, anim, area);
@@ -53,7 +57,7 @@ pub fn draw(f: &mut Frame, timer: &Timer, anim: &Animation, show_help: bool, edi
         ])
         .split(area);
 
-    draw_header(f, timer, rows[0], volume, vol_flash);
+    draw_header(f, timer, rows[0], volume, vol_flash, task_label);
     draw_animation(f, timer, anim, rows[1]);
     draw_progress(f, timer, anim, rows[2]);
 
@@ -63,17 +67,21 @@ pub fn draw(f: &mut Frame, timer: &Timer, anim: &Animation, show_help: bool, edi
     if let Some(es) = edit_state {
         draw_edit(f, es, area, startup);
     }
+    if let Some(ls) = label_state {
+        draw_label_input(f, ls, area);
+    }
 }
 
-fn draw_header(f: &mut Frame, timer: &Timer, area: Rect, volume: f32, vol_flash: (bool, bool)) {
+fn draw_header(f: &mut Frame, timer: &Timer, area: Rect, volume: f32, vol_flash: (bool, bool), task_label: Option<&str>) {
     let color = phase_color(&timer.phase);
     let phase_str = match timer.phase {
         Phase::Work => "F",
         Phase::ShortBreak => "B",
         Phase::LongBreak => "LB",
     };
-    let filled = (timer.sessions_completed % 4) as usize;
-    let dots: String = "●".repeat(filled) + &"○".repeat(4 - filled);
+    let interval = timer.config.long_break_interval as usize;
+    let filled = (timer.sessions_completed as usize) % interval;
+    let dots: String = "●".repeat(filled) + &"○".repeat(interval - filled);
 
     let cols = Layout::default()
         .direction(Direction::Horizontal)
@@ -95,11 +103,16 @@ fn draw_header(f: &mut Frame, timer: &Timer, area: Rect, volume: f32, vol_flash:
             .alignment(Alignment::Center),
         cols[1],
     );
-    f.render_widget(
-        Paragraph::new(Span::styled(dots, Style::default().fg(color)))
-            .alignment(Alignment::Right),
-        cols[2],
-    );
+    let right = if let Some(label) = task_label {
+        Line::from(vec![
+            Span::styled(label.to_string(), Style::default().fg(Color::Rgb(160, 160, 160))),
+            Span::styled("  ", Style::default()),
+            Span::styled(dots, Style::default().fg(color)),
+        ])
+    } else {
+        Line::from(Span::styled(dots, Style::default().fg(color)))
+    };
+    f.render_widget(Paragraph::new(right).alignment(Alignment::Right), cols[2]);
 }
 
 fn draw_animation(f: &mut Frame, timer: &Timer, anim: &Animation, area: Rect) {
@@ -255,12 +268,37 @@ fn draw_edit(f: &mut Frame, es: &EditState, area: Rect, startup: bool) {
     );
 }
 
+fn draw_label_input(f: &mut Frame, ls: &LabelState, area: Rect) {
+    let w = 40u16;
+    let h = 3u16;
+    let x = area.x + area.width.saturating_sub(w) / 2;
+    let y = area.y + area.height.saturating_sub(h) / 2;
+    let popup = Rect { x, y, width: w.min(area.width), height: h.min(area.height) };
+
+    let max_chars = (w as usize).saturating_sub(4);
+    let display: String = ls.text.chars().take(max_chars).collect();
+    let cursor = "█";
+
+    let line = Line::from(vec![
+        Span::styled(format!("  {}", display), Style::default().fg(Color::White)),
+        Span::styled(cursor, Style::default().fg(Color::Yellow)),
+    ]);
+
+    f.render_widget(Clear, popup);
+    f.render_widget(
+        Paragraph::new(line)
+            .block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(Color::DarkGray)).title(" task label ")),
+        popup,
+    );
+}
+
 fn draw_help(f: &mut Frame, area: Rect) {
     let rows: &[(&str, &str)] = &[
         ("space",  "pause / resume"),
         ("n",      "next phase"),
         ("r",      "restart phase"),
         ("e",      "edit timers"),
+        ("t",      "set task label"),
         ("[  ]",   "volume down / up"),
         ("← →",   "cycle theme"),
         ("↑ ↓",   "cycle render mode"),

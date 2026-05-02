@@ -8,8 +8,6 @@
   - Fire crackling loop for fire animation
 
 ### Minor
-- **Session history persistence** — save completed sessions to `~/.local/share/tomodoro/history.json`; show daily counts, streaks, total hours
-- **Task labeling** — type task name before/during session; shown in header; logged to history
 - **Detail scaling** — different levels of scene detail for different terminal pane sizes
 - **Fortune popup** — call `fortune` at end of each focus session; overlay popup dismissible with `q`/`Esc`
 - **Systemd inhibit during work** — call `systemd-inhibit` to block sleep/screensaver while work session active; release on break
@@ -22,6 +20,8 @@
 
 - Config file — `~/.config/tomodoro/config.toml`; auto-created on first launch with commented defaults; keys: `theme`, `render_mode`, `focus_theme`, `break_theme`, `focus`, `short_break`, `long_break`, `volume`, `long_break_interval`, `auto_start`, `countdown_beeps`, `notifications`
 - Desktop notifications — `notify-send` on phase end; toggled via `notifications` in config
+- Task labeling — `t` mid-session opens label input; label shown in header alongside session dots; logged to history
+- Session history — completed focus sessions saved to `~/.local/share/tomodoro/history.json`; `tomodoro history` shows total sessions, total time, task breakdown
 
 - Endless mode — `tomodoro -E` / `tomodoro --endless`; full-screen animation, no timer/sounds; space pauses, ←/→/↑/↓ cycle themes and render modes
 - Version management — `tomodoro install <version>`, `tomodoro list`, `tomodoro --use <version>` to run older crates.io releases alongside current
