@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.4.1] - unreleased
+## [0.4.1] - 2026-05-02
 ### Added
 - Systemd inhibit — blocks sleep and idle while a focus session is running; releases on pause, break, or quit
 - Unknown flags and commands now print an error and point to `--help` instead of silently launching the app
