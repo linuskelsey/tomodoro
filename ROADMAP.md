@@ -9,7 +9,6 @@
 ### Minor
 - **Detail scaling** — different levels of scene detail for different terminal pane sizes
 - **Fortune popup** — call `fortune` at end of each focus session; overlay popup dismissible with `q`/`Esc`
-- **Update check on startup** — background `cargo search` or crates.io API call to detect newer published version; surface as a dismissible notice if update available
 
 ### Patch
 - **alsa-sys Ubuntu/Mint fix** — resolve build failure on Debian-based distros missing `libasound2-dev`; likely optional audio feature flag

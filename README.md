@@ -70,6 +70,7 @@ long_break_interval = 4
 auto_start = false     # skip startup screen
 countdown_beeps = 5    # beep seconds before break ends
 notifications = false  # notify-send on phase end
+update_check = true    # notify if a newer version is available on startup
 ```
 
 ## Features
@@ -84,9 +85,11 @@ notifications = false  # notify-send on phase end
 - **8 animated themes** — waves, rain, falling leaves, starfield, fireplace, aurora borealis, cherry blossom, sunset; all AI-crafted scenes with detailed foreground elements; set different themes for focus and break phases
 - **3 render modes** — half-block, quarter-block, or braille; increasing pixel density per terminal cell
 - **Coloured progress bar** — matches the current theme; uses braille dots in braille mode
+- **Ambient audio** — looping background track per scene; all 8 themes covered; plays while the timer runs; volume follows `[`/`]`
 - **Bell sounds** — single bell when a focus session ends; countdown beeps for the last N seconds of a break (configurable)
 - **Phase indicators** — `F` (focus), `B` (short break), `LB` (long break)
 - **Endless mode** — `tomodoro -E` runs animations full-screen with no timer, sounds, or UI chrome; pure ambient display
+- **Update check** — notifies on startup if a newer version is available; dismissible with any key; disable with `update_check = false`
 - **Version management** — install and switch between old releases with `tomodoro install`, `list`, and `--use`
 
 ## Version management

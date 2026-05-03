@@ -2,8 +2,10 @@
 
 ## [0.5.0] - 2026-05-03
 ### Added
-- Ambient audio — looping background track per scene; all 8 animations covered (waves, rain, forest, deep space, fire, aurora, cherry blossom, sunset); tracks switch instantly on scene change
+- Ambient audio — looping background track per scene; all 8 animations covered; tracks switch instantly on scene change; plays while timer is running
 - Volume `[`/`]` keys now also control ambient level in real time
+- Update check — notifies on startup if a newer version is available on crates.io; dismissible with any key; disable with `update_check = false` in config
+- Seagull in waves scene — flies in, lands on the mast, preens, and departs
 
 ---
 
