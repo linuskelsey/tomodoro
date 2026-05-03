@@ -525,7 +525,7 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                             Phase::ShortBreak | Phase::LongBreak => "Break over. Back to work!",
                         };
                         let _ = std::process::Command::new("notify-send")
-                            .args(["🍅 tomodoro", msg])
+                            .args(["-h", "boolean:suppress-sound:true", "🍅 tomodoro", msg])
                             .spawn();
                     }
                     if timer.phase == Phase::Work {
