@@ -7,6 +7,12 @@ description = "Terminal Pomodoro timer with animated backgrounds"
 repository = "https://github.com/linuskelsey/tomodoro"
 keywords = ["pomodoro", "timer", "tui", "terminal", "productivity"]
 categories = ["command-line-utilities"]
+exclude = [
+    "ROADMAP.md",
+    "CHANGELOG.md",
+    "CONTRIBUTING.md",
+    "demo.gif",
+]
 
 [dependencies]
 ratatui = "0.29"
