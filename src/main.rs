@@ -25,16 +25,16 @@ use timer::{Phase, Timer, TimerConfig};
 use ui::{EditState, LabelState};
 
 const TICK_MS: u64 = 100;
-const SOUND_FOCUS_END: &[u8] = include_bytes!("../sounds/complete.oga");
-const SOUND_BEEP: &[u8] = include_bytes!("../sounds/dialog-information.oga");
-const AMBIENT_WAVES:   &[u8] = include_bytes!("../sounds/waves.ogg");
-const AMBIENT_RAIN:    &[u8] = include_bytes!("../sounds/rain.ogg");
-const AMBIENT_FOREST:  &[u8] = include_bytes!("../sounds/forest.ogg");
-const AMBIENT_SPACE:   &[u8] = include_bytes!("../sounds/deep_space.ogg");
-const AMBIENT_FIRE:    &[u8] = include_bytes!("../sounds/fire.ogg");
-const AMBIENT_AURORA:  &[u8] = include_bytes!("../sounds/wind.ogg");
-const AMBIENT_BLOSSOM: &[u8] = include_bytes!("../sounds/forest_meadow.ogg");
-const AMBIENT_SUNSET:  &[u8] = include_bytes!("../sounds/cicada.ogg");
+const SOUND_FOCUS_END: &[u8] = include_bytes!("../sounds/effects/bell.oga");
+const SOUND_BEEP: &[u8] = include_bytes!("../sounds/effects/beep.oga");
+const AMBIENT_WAVES:   &[u8] = include_bytes!("../sounds/tracks/waves.ogg");
+const AMBIENT_RAIN:    &[u8] = include_bytes!("../sounds/tracks/rain.ogg");
+const AMBIENT_FOREST:  &[u8] = include_bytes!("../sounds/tracks/leaves.ogg");
+const AMBIENT_SPACE:   &[u8] = include_bytes!("../sounds/tracks/stars.ogg");
+const AMBIENT_FIRE:    &[u8] = include_bytes!("../sounds/tracks/fire.ogg");
+const AMBIENT_AURORA:  &[u8] = include_bytes!("../sounds/tracks/aurora.ogg");
+const AMBIENT_BLOSSOM: &[u8] = include_bytes!("../sounds/tracks/blossom.ogg");
+const AMBIENT_SUNSET:  &[u8] = include_bytes!("../sounds/tracks/sunset.ogg");
 
 fn audio_thread() -> mpsc::SyncSender<(&'static [u8], f32)> {
     let (tx, rx) = mpsc::sync_channel::<(&'static [u8], f32)>(8);
