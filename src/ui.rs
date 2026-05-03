@@ -42,7 +42,7 @@ impl EditState {
     }
 }
 
-pub fn draw(f: &mut Frame, timer: &Timer, anim: &Animation, show_help: bool, edit_state: Option<&EditState>, label_state: Option<&LabelState>, startup: bool, volume: f32, endless: bool, vol_flash: (bool, bool), task_label: Option<&str>, update_notice: Option<&str>) {
+pub fn draw(f: &mut Frame, timer: &Timer, anim: &Animation, show_help: bool, edit_state: Option<&EditState>, label_state: Option<&LabelState>, startup: bool, volume: f32, endless: bool, vol_flash: (bool, bool), task_label: Option<&str>, update_notice: Option<&str>, bar_mode_override: Option<RenderMode>) {
     let area = f.area();
     if endless {
         draw_animation(f, timer, anim, area);
@@ -58,9 +58,10 @@ pub fn draw(f: &mut Frame, timer: &Timer, anim: &Animation, show_help: bool, edi
         ])
         .split(area);
 
+    let bar_mode = bar_mode_override.unwrap_or(anim.render_mode);
     draw_header(f, timer, rows[0], volume, vol_flash, task_label);
     draw_animation(f, timer, anim, rows[1]);
-    draw_progress(f, timer, anim, rows[2]);
+    draw_progress(f, timer, anim, bar_mode, rows[2]);
 
     if show_help {
         draw_help(f, area);
@@ -124,7 +125,7 @@ fn draw_animation(f: &mut Frame, timer: &Timer, anim: &Animation, area: Rect) {
     f.render_widget(Paragraph::new(lines).alignment(Alignment::Center), area);
 }
 
-fn draw_progress(f: &mut Frame, timer: &Timer, anim: &Animation, area: Rect) {
+fn draw_progress(f: &mut Frame, timer: &Timer, anim: &Animation, bar_mode: RenderMode, area: Rect) {
     let hint = " ? for help";
     let hint_width = hint.len() as u16 + 1;
     let cols = Layout::default()
@@ -143,7 +144,7 @@ fn draw_progress(f: &mut Frame, timer: &Timer, anim: &Animation, area: Rect) {
     let filled_color = anim.theme_color(&timer.phase);
     let empty_color = Color::Rgb(35, 35, 35);
 
-    let line = if anim.render_mode == RenderMode::Braille {
+    let line = if bar_mode == RenderMode::Braille {
         // Braille bar: 2 pixels per char, dots on the top row (bits 0x01 left, 0x08 right)
         let total_px = width * 2;
         let filled_px = (progress * total_px as f64) as usize;

@@ -36,6 +36,67 @@ const AMBIENT_AURORA:  &[u8] = include_bytes!("../sounds/tracks/aurora.ogg");
 const AMBIENT_BLOSSOM: &[u8] = include_bytes!("../sounds/tracks/blossom.ogg");
 const AMBIENT_SUNSET:  &[u8] = include_bytes!("../sounds/tracks/sunset.ogg");
 
+const COMPLETION_BASH: &str = r#"_tomodoro_completions() {
+    local cur prev words cword
+    _init_completion || return
+    local commands="install list history completions"
+    local flags="--help --version --endless --use"
+    case "$prev" in
+        --use)
+            return ;;
+        install)
+            return ;;
+        completions)
+            COMPREPLY=( $(compgen -W "bash zsh fish" -- "$cur") )
+            return ;;
+    esac
+    if [[ "$cur" == -* ]]; then
+        COMPREPLY=( $(compgen -W "$flags" -- "$cur") )
+    else
+        COMPREPLY=( $(compgen -W "$commands" -- "$cur") )
+    fi
+}
+complete -F _tomodoro_completions tomodoro
+"#;
+
+const COMPLETION_ZSH: &str = r#"#compdef tomodoro
+_tomodoro() {
+    local -a commands flags
+    commands=(
+        'install:Install a version from crates.io'
+        'list:List installed versions'
+        'history:Show session history'
+        'completions:Print shell completion script'
+    )
+    flags=(
+        '(-h --help)'{-h,--help}'[Print help]'
+        '(-V --version)'{-V,--version}'[Print version]'
+        '(-E --endless)'{-E,--endless}'[Endless animation mode]'
+        '(-u --use)'{-u,--use}'[Launch a specific installed version]:version'
+    )
+    if (( CURRENT == 2 )); then
+        _describe 'command' commands -- flags
+    elif (( CURRENT == 3 )); then
+        case "$words[2]" in
+            completions) _values 'shell' bash zsh fish ;;
+        esac
+    fi
+}
+_tomodoro
+"#;
+
+const COMPLETION_FISH: &str = r#"complete -c tomodoro -f
+complete -c tomodoro -s h -l help      -d 'Print help'
+complete -c tomodoro -s V -l version   -d 'Print version'
+complete -c tomodoro -s E -l endless   -d 'Endless animation mode'
+complete -c tomodoro -s u -l use       -d 'Launch a specific installed version' -r
+complete -c tomodoro -n '__fish_use_subcommand' -a install     -d 'Install a version from crates.io'
+complete -c tomodoro -n '__fish_use_subcommand' -a list        -d 'List installed versions'
+complete -c tomodoro -n '__fish_use_subcommand' -a history     -d 'Show session history'
+complete -c tomodoro -n '__fish_use_subcommand' -a completions -d 'Print shell completion script'
+complete -c tomodoro -n '__fish_seen_subcommand_from completions' -a 'bash zsh fish'
+"#;
+
 fn audio_thread() -> mpsc::SyncSender<(&'static [u8], f32)> {
     let (tx, rx) = mpsc::sync_channel::<(&'static [u8], f32)>(8);
     std::thread::spawn(move || {
@@ -228,7 +289,7 @@ fn main() -> io::Result<()> {
 
     if args.iter().any(|a| a == "--help" || a == "-h") {
         println!(
-            "tomodoro {}\n\nUSAGE:\n    tomodoro [OPTIONS]\n    tomodoro <COMMAND>\n\nOPTIONS:\n    -h, --help               Print this help\n    -V, --version            Print version\n    -E, --endless            Endless animation mode (no timers, no sounds)\n    -u, --use <version>      Launch a specific installed version\n\nCOMMANDS:\n    install <version>        Install a version from crates.io\n    list                     List installed versions\n    history                  Show session history",
+            "tomodoro {}\n\nUSAGE:\n    tomodoro [OPTIONS]\n    tomodoro <COMMAND>\n\nOPTIONS:\n    -h, --help               Print this help\n    -V, --version            Print version\n    -E, --endless            Endless animation mode (no timers, no sounds)\n    -u, --use <version>      Launch a specific installed version\n\nCOMMANDS:\n    install <version>        Install a version from crates.io\n    list                     List installed versions\n    history                  Show session history\n    completions <shell>      Print shell completion script (bash, zsh, fish)",
             env!("CARGO_PKG_VERSION")
         );
         return Ok(());
@@ -241,6 +302,20 @@ fn main() -> io::Result<()> {
         },
         Some("list") => return cmd_list(),
         Some("history") => { history::print_history(); return Ok(()); },
+        Some("completions") => match args.get(2).map(|s| s.as_str()) {
+            Some("bash") => { print!("{}", COMPLETION_BASH); return Ok(()); }
+            Some("zsh")  => { print!("{}", COMPLETION_ZSH);  return Ok(()); }
+            Some("fish") => { print!("{}", COMPLETION_FISH); return Ok(()); }
+            _ => {
+                eprintln!("Usage: tomodoro completions <bash|zsh|fish>\n");
+                eprintln!("Examples:");
+                eprintln!("  bash:  tomodoro completions bash >> ~/.bash_completion");
+                eprintln!("         echo 'source ~/.bash_completion' >> ~/.bashrc");
+                eprintln!("  zsh:   tomodoro completions zsh > ~/.zfunc/_tomodoro");
+                eprintln!("  fish:  tomodoro completions fish > ~/.config/fish/completions/tomodoro.fish");
+                return Ok(());
+            }
+        },
         _ => {}
     }
 
@@ -312,6 +387,12 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
     let break_theme = cfg.break_theme.unwrap_or(cfg.theme);
     let countdown_beeps = cfg.countdown_beeps;
     let notifications = cfg.notifications;
+    let bar_mode_override: Option<RenderMode> = match cfg.bar_style.as_deref() {
+        Some("braille") => Some(RenderMode::Braille),
+        Some("quarter") => Some(RenderMode::Quarter),
+        Some("half")    => Some(RenderMode::Half),
+        _               => None,
+    };
     let mut timer = Timer::new(timer_cfg.clone());
     let mut anim = Animation::new_with(focus_theme, break_theme, render_mode);
     let mut volume: f32 = cfg.volume.clamp(0.0, 1.0);
@@ -342,7 +423,7 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                 let lit = t.elapsed() < Duration::from_millis(200);
                 (!right && lit, right && lit)
             });
-            ui::draw(f, &timer, &anim, show_help, edit_state.as_ref(), label_state.as_ref(), startup, volume, endless, fl, task_label.as_deref(), update_notice.as_deref());
+            ui::draw(f, &timer, &anim, show_help, edit_state.as_ref(), label_state.as_ref(), startup, volume, endless, fl, task_label.as_deref(), update_notice.as_deref(), bar_mode_override);
         })?;
 
         if !endless {

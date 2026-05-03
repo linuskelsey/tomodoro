@@ -36,10 +36,27 @@ On launch, a setup screen lets you choose your focus and break durations. Use `T
 ### CLI flags
 
 ```sh
-tomodoro --help       # list flags and subcommands
-tomodoro --version    # print version
-tomodoro --endless    # endless animation mode (also -E)
-tomodoro history      # show session history
+tomodoro --help                 # list flags and subcommands
+tomodoro --version              # print version
+tomodoro --endless              # endless animation mode (also -E)
+tomodoro history                # show session history
+tomodoro completions bash       # print bash completion script
+tomodoro completions zsh        # print zsh completion script
+tomodoro completions fish       # print fish completion script
+```
+
+To enable tab completion, pipe the output into your shell's completion setup. Examples:
+
+```sh
+# bash (~/.bashrc or ~/.bash_completion)
+tomodoro completions bash >> ~/.bash_completion
+
+# zsh (~/.zshrc, after fpath setup)
+tomodoro completions zsh > ~/.zfunc/_tomodoro
+echo 'fpath=(~/.zfunc $fpath)' >> ~/.zshrc
+
+# fish
+tomodoro completions fish > ~/.config/fish/completions/tomodoro.fish
 ```
 
 ### Endless mode
@@ -71,6 +88,7 @@ auto_start = false     # skip startup screen
 countdown_beeps = 5    # beep seconds before break ends
 notifications = false  # notify-send on phase end
 update_check = true    # notify if a newer version is available on startup
+bar_style = "braille"  # lock progress bar style: half | quarter | braille (default: follows render mode)
 ```
 
 ## Features
@@ -90,6 +108,7 @@ update_check = true    # notify if a newer version is available on startup
 - **Phase indicators** — `F` (focus), `B` (short break), `LB` (long break)
 - **Endless mode** — `tomodoro -E` runs animations full-screen with no timer, sounds, or UI chrome; pure ambient display
 - **Update check** — notifies on startup if a newer version is available; dismissible with any key; disable with `update_check = false`
+- **Bar style** — lock the progress bar to `half`, `quarter`, or `braille` via `bar_style` in config, independent of the animation render mode
 - **Version management** — install and switch between old releases with `tomodoro install`, `list`, and `--use`
 
 ## Version management

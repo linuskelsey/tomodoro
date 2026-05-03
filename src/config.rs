@@ -16,6 +16,7 @@ pub struct AppConfig {
     pub countdown_beeps: u64,
     pub notifications: bool,
     pub update_check: bool,
+    pub bar_style: Option<String>,
 }
 
 impl Default for AppConfig {
@@ -34,6 +35,7 @@ impl Default for AppConfig {
             countdown_beeps: 5,
             notifications: false,
             update_check: true,
+            bar_style: None,
         }
     }
 }
@@ -73,6 +75,9 @@ const DEFAULT_CONFIG: &str = r#"# tomodoro configuration
 
 # Check crates.io for a newer version on startup (via cargo search)
 # update_check = true
+
+# Lock the progress bar to a specific style regardless of render mode: "half", "quarter", "braille"
+# bar_style = "braille"
 "#;
 
 impl AppConfig {
