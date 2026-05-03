@@ -455,10 +455,10 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
             }
         }
 
-        let theme_idx = anim.active_theme(&timer.phase);
-        if Some(theme_idx) != last_ambient {
-            last_ambient = Some(theme_idx);
-            match ambient_for_theme(theme_idx) {
+        let desired = if timer.running { Some(anim.active_theme(&timer.phase)) } else { None };
+        if desired != last_ambient {
+            last_ambient = desired;
+            match desired.and_then(ambient_for_theme) {
                 Some(bytes) => { let _ = ambient.send(AmbientCmd::Play(bytes, volume)); }
                 None => { let _ = ambient.send(AmbientCmd::Stop); }
             }
