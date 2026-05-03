@@ -297,7 +297,7 @@ impl Animation {
 
     pub fn tick(&mut self) { self.tick_count += 1; }
 
-    fn active_theme(&self, phase: &crate::timer::Phase) -> usize {
+    pub fn active_theme(&self, phase: &crate::timer::Phase) -> usize {
         match phase {
             crate::timer::Phase::Work => self.focus_theme,
             _ => self.break_theme,

@@ -10,6 +10,8 @@ use std::{
     time::{Duration, Instant},
 };
 
+use rodio::Source;
+
 use crossterm::{
     event::{self, DisableFocusChange, EnableFocusChange, Event, KeyCode, KeyEventKind, KeyModifiers},
     execute,
@@ -25,6 +27,14 @@ use ui::{EditState, LabelState};
 const TICK_MS: u64 = 100;
 const SOUND_FOCUS_END: &[u8] = include_bytes!("../sounds/complete.oga");
 const SOUND_BEEP: &[u8] = include_bytes!("../sounds/dialog-information.oga");
+const AMBIENT_WAVES:   &[u8] = include_bytes!("../sounds/waves.ogg");
+const AMBIENT_RAIN:    &[u8] = include_bytes!("../sounds/rain.ogg");
+const AMBIENT_FOREST:  &[u8] = include_bytes!("../sounds/forest.ogg");
+const AMBIENT_SPACE:   &[u8] = include_bytes!("../sounds/deep_space.ogg");
+const AMBIENT_FIRE:    &[u8] = include_bytes!("../sounds/fire.ogg");
+const AMBIENT_AURORA:  &[u8] = include_bytes!("../sounds/wind.ogg");
+const AMBIENT_BLOSSOM: &[u8] = include_bytes!("../sounds/forest_meadow.ogg");
+const AMBIENT_SUNSET:  &[u8] = include_bytes!("../sounds/cicada.ogg");
 
 fn audio_thread() -> mpsc::SyncSender<(&'static [u8], f32)> {
     let (tx, rx) = mpsc::sync_channel::<(&'static [u8], f32)>(8);
@@ -41,6 +51,47 @@ fn audio_thread() -> mpsc::SyncSender<(&'static [u8], f32)> {
         }
     });
     tx
+}
+
+enum AmbientCmd { Play(&'static [u8], f32), Volume(f32), Stop }
+
+fn ambient_thread() -> mpsc::Sender<AmbientCmd> {
+    let (tx, rx) = mpsc::channel::<AmbientCmd>();
+    std::thread::spawn(move || {
+        let Ok((_stream, handle)) = rodio::OutputStream::try_default() else { return };
+        let mut sink: Option<rodio::Sink> = None;
+        for cmd in rx {
+            match cmd {
+                AmbientCmd::Play(bytes, vol) => {
+                    if let Some(s) = sink.take() { s.stop(); }
+                    if let Ok(s) = rodio::Sink::try_new(&handle) {
+                        s.set_volume(vol);
+                        if let Ok(src) = rodio::Decoder::new(Cursor::new(bytes)) {
+                            s.append(src.repeat_infinite());
+                        }
+                        sink = Some(s);
+                    }
+                }
+                AmbientCmd::Volume(v) => { if let Some(ref s) = sink { s.set_volume(v); } }
+                AmbientCmd::Stop => { if let Some(s) = sink.take() { s.stop(); } }
+            }
+        }
+    });
+    tx
+}
+
+fn ambient_for_theme(idx: usize) -> Option<&'static [u8]> {
+    match idx {
+        0 => Some(AMBIENT_WAVES),
+        1 => Some(AMBIENT_RAIN),
+        2 => Some(AMBIENT_FOREST),
+        3 => Some(AMBIENT_SPACE),
+        4 => Some(AMBIENT_FIRE),
+        5 => Some(AMBIENT_AURORA),
+        6 => Some(AMBIENT_BLOSSOM),
+        7 => Some(AMBIENT_SUNSET),
+        _ => None,
+    }
 }
 
 fn play_immediate(bytes: &'static [u8], volume: f32) {
@@ -208,6 +259,8 @@ fn main() -> io::Result<()> {
 
 fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg: AppConfig) -> io::Result<()> {
     let audio = audio_thread();
+    let ambient = ambient_thread();
+    let mut last_ambient: Option<usize> = None;
     let timer_cfg = TimerConfig {
         work_secs: cfg.focus * 60,
         short_break_secs: cfg.short_break * 60,
@@ -379,10 +432,12 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                                 (KeyCode::Char(']'), _) => {
                                     volume = ((volume * 10.0 + 1.0).round() / 10.0).min(1.0);
                                     vol_flash = Some((true, Instant::now()));
+                                    let _ = ambient.send(AmbientCmd::Volume(volume));
                                 }
                                 (KeyCode::Char('['), _) => {
                                     volume = ((volume * 10.0 - 1.0).round() / 10.0).max(0.0);
                                     vol_flash = Some((false, Instant::now()));
+                                    let _ = ambient.send(AmbientCmd::Volume(volume));
                                 }
                                 (KeyCode::Right, _) => anim.next_theme(&timer.phase),
                                 (KeyCode::Left, _) => anim.prev_theme(&timer.phase),
@@ -397,6 +452,15 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                 }
             } else {
                 break;
+            }
+        }
+
+        let theme_idx = anim.active_theme(&timer.phase);
+        if Some(theme_idx) != last_ambient {
+            last_ambient = Some(theme_idx);
+            match ambient_for_theme(theme_idx) {
+                Some(bytes) => { let _ = ambient.send(AmbientCmd::Play(bytes, volume)); }
+                None => { let _ = ambient.send(AmbientCmd::Stop); }
             }
         }
 
