@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0] - 2026-05-03
+### Added
+- Ambient audio — looping background track per scene; all 8 animations covered (waves, rain, forest, deep space, fire, aurora, cherry blossom, sunset); tracks switch instantly on scene change
+- Volume `[`/`]` keys now also control ambient level in real time
+
+---
+
 ## [0.4.1] - 2026-05-02
 ### Added
 - Systemd inhibit — blocks sleep and idle while a focus session is running; releases on pause, break, or quit

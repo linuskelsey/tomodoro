@@ -4,7 +4,7 @@
 
 ### Major
 - **New animation set** — full redraw of all themes from scratch; two-tone (black + terminal foreground colour); higher resolution than current; dithered/ordered-halftone style for atmospheric scenes, chunky pixel art for character/creature scenes; both styles suit KGP/sixel rendering cleanly
-- ~~**Music / ambience**~~ ✓ — looping ambient track per scene, all 8 themes covered
+- **Spotify integration** — connect Spotify account via OAuth; auto play/pause on session start/end; user selects a playlist to shuffle during focus sessions
 
 ### Minor
 - **Detail scaling** — different levels of scene detail for different terminal pane sizes
