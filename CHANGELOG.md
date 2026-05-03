@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.5.1] - unreleased
+## [0.5.1] - 2026-05-03
 ### Added
 - `bar_style` config option — lock the progress bar to a specific style (`half`, `quarter`, `braille`) independent of the animation render mode
 - Shell completions — `tomodoro completions <bash|zsh|fish>` prints a completion script for the given shell; pipe into your shell's completion directory to enable tab completion

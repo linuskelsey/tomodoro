@@ -48,10 +48,12 @@ tomodoro completions fish       # print fish completion script
 To enable tab completion, pipe the output into your shell's completion setup. Examples:
 
 ```sh
-# bash (~/.bashrc or ~/.bash_completion)
-tomodoro completions bash >> ~/.bash_completion
+# bash
+tomodoro completions bash > ~/.bash_completion
+echo 'source ~/.bash_completion' >> ~/.bashrc
 
-# zsh (~/.zshrc, after fpath setup)
+# zsh
+mkdir -p ~/.zfunc
 tomodoro completions zsh > ~/.zfunc/_tomodoro
 echo 'fpath=(~/.zfunc $fpath)' >> ~/.zshrc
 
@@ -109,6 +111,7 @@ bar_style = "braille"  # lock progress bar style: half | quarter | braille (defa
 - **Endless mode** — `tomodoro -E` runs animations full-screen with no timer, sounds, or UI chrome; pure ambient display
 - **Update check** — notifies on startup if a newer version is available; dismissible with any key; disable with `update_check = false`
 - **Bar style** — lock the progress bar to `half`, `quarter`, or `braille` via `bar_style` in config, independent of the animation render mode
+- **Shell completions** — `tomodoro completions <bash|zsh|fish>` prints a completion script; pipe into your shell's completion setup for tab completion
 - **Version management** — install and switch between old releases with `tomodoro install`, `list`, and `--use`
 
 ## Version management
