@@ -107,6 +107,40 @@ fn play_immediate(bytes: &'static [u8], volume: f32) {
     });
 }
 
+fn version_check() -> mpsc::Receiver<String> {
+    let (tx, rx) = mpsc::channel();
+    std::thread::spawn(move || {
+        if let Some(latest) = fetch_latest_version() {
+            if is_newer(&latest, env!("CARGO_PKG_VERSION")) {
+                let _ = tx.send(latest);
+            }
+        }
+    });
+    rx
+}
+
+fn fetch_latest_version() -> Option<String> {
+    let out = std::process::Command::new("cargo")
+        .args(["search", "tomodoro", "--limit", "1"])
+        .output()
+        .ok()?;
+    let stdout = String::from_utf8(out.stdout).ok()?;
+    let line = stdout.lines().find(|l| l.starts_with("tomodoro "))?;
+    Some(line.split('"').nth(1)?.to_string())
+}
+
+fn parse_version(v: &str) -> Option<(u32, u32, u32)> {
+    let mut p = v.split('.');
+    Some((p.next()?.parse().ok()?, p.next()?.parse().ok()?, p.next()?.parse().ok()?))
+}
+
+fn is_newer(latest: &str, current: &str) -> bool {
+    match (parse_version(latest), parse_version(current)) {
+        (Some(l), Some(c)) => l > c,
+        _ => false,
+    }
+}
+
 fn start_inhibit() -> Option<std::process::Child> {
     std::process::Command::new("systemd-inhibit")
         .args(["--what=sleep:idle", "--who=tomodoro", "--why=Focus session", "--mode=block", "sleep", "infinity"])
@@ -261,6 +295,8 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
     let audio = audio_thread();
     let ambient = ambient_thread();
     let mut last_ambient: Option<usize> = None;
+    let update_rx = if cfg.update_check { Some(version_check()) } else { None };
+    let mut update_notice: Option<String> = None;
     let timer_cfg = TimerConfig {
         work_secs: cfg.focus * 60,
         short_break_secs: cfg.short_break * 60,
@@ -296,12 +332,17 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
     }
 
     loop {
+        if update_notice.is_none() {
+            if let Some(ref rx) = update_rx {
+                if let Ok(v) = rx.try_recv() { update_notice = Some(v); }
+            }
+        }
         terminal.draw(|f| {
             let fl = vol_flash.map_or((false, false), |(right, t)| {
                 let lit = t.elapsed() < Duration::from_millis(200);
                 (!right && lit, right && lit)
             });
-            ui::draw(f, &timer, &anim, show_help, edit_state.as_ref(), label_state.as_ref(), startup, volume, endless, fl, task_label.as_deref());
+            ui::draw(f, &timer, &anim, show_help, edit_state.as_ref(), label_state.as_ref(), startup, volume, endless, fl, task_label.as_deref(), update_notice.as_deref());
         })?;
 
         if !endless {
@@ -324,6 +365,7 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
             if event::poll(remaining)? {
                 match event::read()? {
                     Event::Key(key) if key.kind == KeyEventKind::Press => {
+                        update_notice = None;
                         if endless {
                             match (key.code, key.modifiers) {
                                 (KeyCode::Char('q'), _)

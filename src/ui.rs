@@ -42,10 +42,11 @@ impl EditState {
     }
 }
 
-pub fn draw(f: &mut Frame, timer: &Timer, anim: &Animation, show_help: bool, edit_state: Option<&EditState>, label_state: Option<&LabelState>, startup: bool, volume: f32, endless: bool, vol_flash: (bool, bool), task_label: Option<&str>) {
+pub fn draw(f: &mut Frame, timer: &Timer, anim: &Animation, show_help: bool, edit_state: Option<&EditState>, label_state: Option<&LabelState>, startup: bool, volume: f32, endless: bool, vol_flash: (bool, bool), task_label: Option<&str>, update_notice: Option<&str>) {
     let area = f.area();
     if endless {
         draw_animation(f, timer, anim, area);
+        if let Some(v) = update_notice { draw_update_notice(f, area, v); }
         return;
     }
     let rows = Layout::default()
@@ -69,6 +70,9 @@ pub fn draw(f: &mut Frame, timer: &Timer, anim: &Animation, show_help: bool, edi
     }
     if let Some(ls) = label_state {
         draw_label_input(f, ls, area);
+    }
+    if let Some(v) = update_notice {
+        draw_update_notice(f, area, v);
     }
 }
 
@@ -323,6 +327,30 @@ fn draw_help(f: &mut Frame, area: Rect) {
     f.render_widget(
         Paragraph::new(lines)
             .block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(Color::DarkGray))),
+        popup,
+    );
+}
+
+fn draw_update_notice(f: &mut Frame, area: Rect, version: &str) {
+    let msg = format!("  tomodoro v{} available  ", version);
+    let w = (msg.len() as u16 + 2).min(area.width);
+    let h = 3u16;
+    let x = area.x + area.width.saturating_sub(w);
+    let y = area.y + area.height.saturating_sub(h);
+    let popup = Rect { x, y, width: w, height: h.min(area.height) };
+
+    f.render_widget(Clear, popup);
+    f.render_widget(
+        Paragraph::new(Line::from(Span::styled(msg, Style::default().fg(Color::Yellow))))
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(Color::Rgb(80, 80, 80)))
+                    .title_bottom(
+                        Line::from(Span::styled(" any key to dismiss ", Style::default().fg(Color::Rgb(60, 60, 60))))
+                            .right_aligned(),
+                    ),
+            ),
         popup,
     );
 }

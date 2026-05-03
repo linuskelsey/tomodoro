@@ -15,6 +15,7 @@ pub struct AppConfig {
     pub auto_start: bool,
     pub countdown_beeps: u64,
     pub notifications: bool,
+    pub update_check: bool,
 }
 
 impl Default for AppConfig {
@@ -32,6 +33,7 @@ impl Default for AppConfig {
             auto_start: false,
             countdown_beeps: 5,
             notifications: false,
+            update_check: true,
         }
     }
 }
@@ -68,6 +70,9 @@ const DEFAULT_CONFIG: &str = r#"# tomodoro configuration
 
 # Desktop notifications via notify-send on phase end
 # notifications = false
+
+# Check crates.io for a newer version on startup (via cargo search)
+# update_check = true
 "#;
 
 impl AppConfig {
