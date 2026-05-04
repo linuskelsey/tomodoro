@@ -42,7 +42,7 @@ impl EditState {
     }
 }
 
-pub fn draw(f: &mut Frame, timer: &Timer, anim: &Animation, show_help: bool, edit_state: Option<&EditState>, label_state: Option<&LabelState>, startup: bool, volume: f32, endless: bool, vol_flash: (bool, bool), task_label: Option<&str>, update_notice: Option<&str>, bar_mode_override: Option<RenderMode>) {
+pub fn draw(f: &mut Frame, timer: &Timer, anim: &Animation, show_help: bool, edit_state: Option<&EditState>, label_state: Option<&LabelState>, startup: bool, volume: f32, endless: bool, vol_flash: (bool, bool), task_label: Option<&str>, update_notice: Option<&str>, bar_mode_override: Option<RenderMode>, config_warnings: Option<&[String]>) {
     let area = f.area();
     if endless {
         draw_animation(f, timer, anim, area);
@@ -74,6 +74,9 @@ pub fn draw(f: &mut Frame, timer: &Timer, anim: &Animation, show_help: bool, edi
     }
     if let Some(v) = update_notice {
         draw_update_notice(f, area, v);
+    }
+    if let Some(w) = config_warnings {
+        draw_config_warnings(f, area, w);
     }
 }
 
@@ -350,6 +353,35 @@ fn draw_update_notice(f: &mut Frame, area: Rect, version: &str) {
                     .title_bottom(
                         Line::from(Span::styled(" any key to dismiss ", Style::default().fg(Color::Rgb(60, 60, 60))))
                             .right_aligned(),
+                    ),
+            ),
+        popup,
+    );
+}
+
+fn draw_config_warnings(f: &mut Frame, area: Rect, warnings: &[String]) {
+    let w = 52u16;
+    let h = (warnings.len() as u16 + 3).min(area.height);
+    let x = area.x + area.width.saturating_sub(w) / 2;
+    let y = area.y + area.height.saturating_sub(h) / 2;
+    let popup = Rect { x, y, width: w.min(area.width), height: h };
+
+    let dim = Style::default().fg(Color::Rgb(60, 60, 60));
+    let mut lines: Vec<Line> = warnings.iter().map(|w| {
+        Line::from(Span::styled(format!("  {}", w), Style::default().fg(Color::Yellow)))
+    }).collect();
+    lines.push(Line::from(Span::styled("  config file updated", dim)));
+
+    f.render_widget(Clear, popup);
+    f.render_widget(
+        Paragraph::new(lines)
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(Color::Rgb(80, 80, 80)))
+                    .title(" config warning ")
+                    .title_bottom(
+                        Line::from(Span::styled(" any key to dismiss ", dim)).right_aligned(),
                     ),
             ),
         popup,

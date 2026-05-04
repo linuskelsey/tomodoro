@@ -90,7 +90,7 @@ auto_start = false     # skip startup screen
 countdown_beeps = 5    # beep seconds before break ends
 notifications = false  # notify-send on phase end
 update_check = true    # notify if a newer version is available on startup
-bar_style = "braille"  # lock progress bar style: half | quarter | braille (default: follows render mode)
+bar_style = "half"     # lock progress bar style: half | quarter | braille (default: follows render mode)
 ```
 
 ## Features
@@ -98,7 +98,7 @@ bar_style = "braille"  # lock progress bar style: half | quarter | braille (defa
 - **Custom durations** — set focus, short break, and long break times on startup or mid-session with `e`; type values directly or use arrow keys
 - **Volume control** — adjust bell and beep volume with `[`/`]`, displayed in the header
 - **Session tracker** — dots in the top-right show progress toward a long break (every 4 sessions)
-- **Config file** — `~/.config/tomodoro/config.toml` auto-created on first launch; set persistent defaults for themes, durations, volume, and more
+- **Config file** — `~/.config/tomodoro/config.toml` auto-created on first launch; set persistent defaults for themes, durations, volume, and more; invalid or unrecognised values are reset to defaults with an in-app warning; new keys added by updates are merged in automatically without overwriting existing settings
 - **Desktop notifications** — optional `notify-send` alerts on phase end; enable with `notifications = true` in config
 - **Task labeling** — press `t` mid-session to name the current task; shown in the header; logged with each completed session
 - **Session history** — completed focus sessions saved to `~/.local/share/tomodoro/history.json`; run `tomodoro history` to see totals and task breakdown

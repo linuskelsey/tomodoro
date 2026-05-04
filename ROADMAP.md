@@ -18,4 +18,3 @@
 
 ### Patch
 - **alsa-sys Ubuntu/Mint fix** — resolve build failure on Debian-based distros missing `libasound2-dev`; likely optional audio feature flag
-- **Config validation warnings** — print a warning on launch when config has unknown keys or out-of-range values instead of silently ignoring them

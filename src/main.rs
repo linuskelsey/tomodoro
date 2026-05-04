@@ -348,16 +348,21 @@ fn main() -> io::Result<()> {
         default_hook(info);
     }));
 
+    let endless = args.iter().any(|a| a == "--endless" || a == "-E");
+    let cfg = AppConfig::load();
+    let config_warnings: Option<Vec<String>> = if cfg.warnings.is_empty() {
+        None
+    } else {
+        Some(cfg.warnings.clone())
+    };
+
     let mut stdout = io::stdout();
     enable_raw_mode()?;
     execute!(stdout, EnterAlternateScreen, EnableFocusChange)?;
 
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
-
-    let endless = args.iter().any(|a| a == "--endless" || a == "-E");
-    let cfg = AppConfig::load();
-    let result = run(&mut terminal, endless, cfg);
+    let result = run(&mut terminal, endless, cfg, config_warnings);
 
     disable_raw_mode()?;
     execute!(terminal.backend_mut(), DisableFocusChange, LeaveAlternateScreen)?;
@@ -366,7 +371,7 @@ fn main() -> io::Result<()> {
     result
 }
 
-fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg: AppConfig) -> io::Result<()> {
+fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg: AppConfig, mut config_warnings: Option<Vec<String>>) -> io::Result<()> {
     let audio = audio_thread();
     let ambient = ambient_thread();
     let mut last_ambient: Option<usize> = None;
@@ -423,7 +428,7 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                 let lit = t.elapsed() < Duration::from_millis(200);
                 (!right && lit, right && lit)
             });
-            ui::draw(f, &timer, &anim, show_help, edit_state.as_ref(), label_state.as_ref(), startup, volume, endless, fl, task_label.as_deref(), update_notice.as_deref(), bar_mode_override);
+            ui::draw(f, &timer, &anim, show_help, edit_state.as_ref(), label_state.as_ref(), startup, volume, endless, fl, task_label.as_deref(), update_notice.as_deref(), bar_mode_override, config_warnings.as_deref());
         })?;
 
         if !endless {
@@ -447,6 +452,7 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                 match event::read()? {
                     Event::Key(key) if key.kind == KeyEventKind::Press => {
                         update_notice = None;
+                        config_warnings = None;
                         if endless {
                             match (key.code, key.modifiers) {
                                 (KeyCode::Char('q'), _)

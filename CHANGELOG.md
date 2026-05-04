@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.5.2] - 2026-05-04
+### Added
+- Config validation — unrecognised keys and out-of-range values are caught on launch; bad entries are removed from the config file, reset to defaults, and reported via an in-app warning popup dismissible with any key
+- Config migration — when a new config key is introduced in an update, it is automatically added to the user's existing config file as a commented default without touching any previously set values
+
+### Fixed
+- `bar_style` comment in generated config now shows `"half"` as the example value
+
+---
+
 ## [0.5.1] - 2026-05-03
 ### Added
 - `bar_style` config option — lock the progress bar to a specific style (`half`, `quarter`, `braille`) independent of the animation render mode
