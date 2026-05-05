@@ -19,6 +19,3 @@
 
 ### Patch
 - **XDG_CONFIG_HOME support** — respect `$XDG_CONFIG_HOME` for config path instead of hardcoding `~/.config/tomodoro`; affects users with non-standard XDG setups
-- **Update check via crates.io API** — replace `cargo search` (slow, requires cargo on PATH) with a direct HTTP call to the crates.io API using `curl`; faster and more reliable
-- **Endless mode volume display** — show volume level feedback when adjusting with `[`/`]` in endless mode; currently keys work but nothing is shown
-- **Timestamped history output** — `tomodoro history` currently shows only totals and task breakdown; surface per-session rows with timestamp, duration, and label so users can see when each session occurred

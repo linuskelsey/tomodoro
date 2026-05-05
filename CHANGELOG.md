@@ -1,6 +1,15 @@
 # Changelog
 
 ## [0.6.0] - unreleased
+### Added
+- Mute — `m` key mutes and unmutes in both regular and endless mode; restores previous volume level on unmute
+- Endless mode volume controls — `[`/`]` now work in endless mode; volume overlay appears top-left matching regular mode header position; persists for 500ms; shows `vol: muted` when muted
+- Endless mode help — `?` opens a dedicated help overlay listing endless-specific controls
+- Session history redesign — `tomodoro history` now shows a grouped table by day and task with start time, end time, and session count per row; summary stats at the top (avg session length, avg sessions per day, best day); defaults to last 20 rows; pass `--full` to show complete history
+
+### Changed
+- Update check now uses the crates.io HTTP API via `curl` instead of `cargo search`; faster and no longer requires cargo on PATH
+
 ### Fixed
 - Install instructions now prominently surface the `libasound2-dev` requirement for Debian/Ubuntu/Mint users at the point of installation, not only in the Requirements section
 
