@@ -155,6 +155,31 @@ fn ambient_for_theme(idx: usize) -> Option<&'static [u8]> {
     }
 }
 
+fn expand_tilde(path: &str) -> String {
+    if path.starts_with("~/") {
+        let home = std::env::var("HOME").unwrap_or_else(|_| ".".into());
+        format!("{}/{}", home, &path[2..])
+    } else {
+        path.to_string()
+    }
+}
+
+fn play_sound_file(path: &str, volume: f32) {
+    let path = expand_tilde(path);
+    std::thread::spawn(move || {
+        let Ok((_stream, handle)) = rodio::OutputStream::try_default() else { return };
+        if let Ok(sink) = rodio::Sink::try_new(&handle) {
+            sink.set_volume(volume);
+            if let Ok(file) = std::fs::File::open(&path) {
+                if let Ok(source) = rodio::Decoder::new(std::io::BufReader::new(file)) {
+                    sink.append(source);
+                    sink.sleep_until_end();
+                }
+            }
+        }
+    });
+}
+
 fn play_immediate(bytes: &'static [u8], volume: f32) {
     std::thread::spawn(move || {
         let Ok((_stream, handle)) = rodio::OutputStream::try_default() else { return };
@@ -381,6 +406,8 @@ fn main() -> io::Result<()> {
 }
 
 fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg: AppConfig, mut config_warnings: Option<Vec<String>>) -> io::Result<()> {
+    let bell_sound = cfg.bell_sound.clone();
+    let beep_sound = cfg.beep_sound.clone();
     let audio = audio_thread();
     let ambient = ambient_thread();
     let mut last_ambient: Option<usize> = None;
@@ -482,11 +509,19 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
 
         if !endless {
             for _ in 0..ding_pending {
-                play_immediate(SOUND_FOCUS_END, volume);
+                if let Some(ref path) = bell_sound {
+                    play_sound_file(path, volume);
+                } else {
+                    play_immediate(SOUND_FOCUS_END, volume);
+                }
             }
             ding_pending = 0;
             for _ in 0..beep_pending {
-                let _ = audio.try_send((SOUND_BEEP, volume));
+                if let Some(ref path) = beep_sound {
+                    play_sound_file(path, volume);
+                } else {
+                    let _ = audio.try_send((SOUND_BEEP, volume));
+                }
             }
             beep_pending = 0;
         } else {

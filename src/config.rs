@@ -26,6 +26,8 @@ pub struct AppConfig {
     pub bar_style: Option<String>,
     pub default_profile: Option<String>,
     pub profiles: std::collections::HashMap<String, ProfileConfig>,
+    pub bell_sound: Option<String>,
+    pub beep_sound: Option<String>,
     #[serde(skip)]
     pub warnings: Vec<String>,
 }
@@ -49,6 +51,8 @@ impl Default for AppConfig {
             bar_style: None,
             default_profile: None,
             profiles: std::collections::HashMap::new(),
+            bell_sound: None,
+            beep_sound: None,
             warnings: Vec::new(),
         }
     }
@@ -71,6 +75,8 @@ const KNOWN_KEYS: &[&str] = &[
     "bar_style",
     "default_profile",
     "profiles",
+    "bell_sound",
+    "beep_sound",
 ];
 
 const DEFAULT_CONFIG: &str = r#"# tomodoro configuration
@@ -115,6 +121,11 @@ const DEFAULT_CONFIG: &str = r#"# tomodoro configuration
 # Profile to load at startup without showing the picker (must match a [profiles.*] name below)
 # default_profile = "deep"
 
+# Custom effect sounds — path to an audio file (ogg, mp3, wav, flac)
+# Files can be placed in ~/.config/tomodoro/sounds/effects/
+# bell_sound = "~/.config/tomodoro/sounds/effects/bell.mp3"
+# beep_sound = "~/.config/tomodoro/sounds/effects/beep.mp3"
+
 # Timer profiles — named presets selectable at startup
 # Each accepts: focus, short_break, long_break (minutes); omitted values fall back to the defaults above
 # [profiles.deep]
@@ -126,10 +137,12 @@ const DEFAULT_CONFIG: &str = r#"# tomodoro configuration
 impl AppConfig {
     pub fn load() -> Self {
         let path = config_path();
+        if let Some(dir) = path.parent() {
+            let _ = std::fs::create_dir_all(dir);
+            let _ = std::fs::create_dir_all(dir.join("sounds/effects"));
+            let _ = std::fs::create_dir_all(dir.join("sounds/tracks"));
+        }
         if !path.exists() {
-            if let Some(dir) = path.parent() {
-                let _ = std::fs::create_dir_all(dir);
-            }
             let _ = std::fs::write(&path, DEFAULT_CONFIG);
             return Self::default();
         }
@@ -333,6 +346,12 @@ fn build_config_content(config: &AppConfig, explicit: &std::collections::HashSet
     }
     if let Some(ref s) = config.default_profile {
         set(&mut out, "# default_profile = \"deep\"", &format!("default_profile = \"{}\"", s));
+    }
+    if let Some(ref s) = config.bell_sound {
+        set(&mut out, "# bell_sound = \"~/.config/tomodoro/sounds/effects/bell.mp3\"", &format!("bell_sound = \"{}\"", s));
+    }
+    if let Some(ref s) = config.beep_sound {
+        set(&mut out, "# beep_sound = \"~/.config/tomodoro/sounds/effects/beep.mp3\"", &format!("beep_sound = \"{}\"", s));
     }
 
     out
