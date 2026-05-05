@@ -23,39 +23,102 @@ pub fn log_session(duration_mins: u64, label: Option<&str>) {
     }
 }
 
-pub fn print_history() {
+pub fn print_history(full: bool) {
     let sessions = load_sessions();
     if sessions.is_empty() {
         println!("No sessions recorded.");
         return;
     }
+
     let total_mins: u64 = sessions.iter().map(|s| s.duration_mins).sum();
-    let hours = total_mins / 60;
-    let mins = total_mins % 60;
+    let avg_session = total_mins / sessions.len() as u64;
 
-    println!("Sessions:   {}", sessions.len());
-    if hours > 0 {
-        println!("Total time: {}h {}m", hours, mins);
-    } else {
-        println!("Total time: {}m", mins);
-    }
+    let unique_days: std::collections::HashSet<&str> = sessions.iter()
+        .filter_map(|s| s.timestamp.get(..10))
+        .collect();
+    let avg_per_day = sessions.len() as f64 / unique_days.len() as f64;
 
-    let mut tasks: Vec<(String, usize)> = Vec::new();
+    let mut day_mins: std::collections::HashMap<&str, u64> = std::collections::HashMap::new();
     for s in &sessions {
-        if let Some(label) = &s.label {
-            if let Some(entry) = tasks.iter_mut().find(|(l, _)| l == label) {
-                entry.1 += 1;
-            } else {
-                tasks.push((label.clone(), 1));
-            }
+        if let Some(day) = s.timestamp.get(..10) {
+            *day_mins.entry(day).or_insert(0) += s.duration_mins;
+        }
+    }
+    let best_day = day_mins.iter().max_by_key(|(_, m)| *m);
+
+    println!("Sessions:    {}", sessions.len());
+    println!("Avg session: {}", fmt_duration(avg_session));
+    println!("Avg per day: {:.1} sessions", avg_per_day);
+    if let Some((day, mins)) = best_day {
+        println!("Best day:    {} ({})", fmt_date(day), fmt_duration(*mins));
+    }
+    println!();
+
+    struct Row {
+        day: String,
+        task: String,
+        first_start: String,
+        last_start: String,
+        last_dur: u64,
+        count: usize,
+    }
+    let mut rows: Vec<Row> = Vec::new();
+    for s in &sessions {
+        let day  = s.timestamp.get(..10).unwrap_or("").to_string();
+        let time = s.timestamp.get(11..16).unwrap_or("??:??").to_string();
+        let task = s.label.clone().unwrap_or_default();
+        if let Some(r) = rows.iter_mut().find(|r| r.day == day && r.task == task) {
+            r.last_start = time;
+            r.last_dur = s.duration_mins;
+            r.count += 1;
+        } else {
+            rows.push(Row { day, task, first_start: time.clone(), last_start: time, last_dur: s.duration_mins, count: 1 });
         }
     }
 
-    if !tasks.is_empty() {
-        println!("\nTasks:");
-        for (label, count) in &tasks {
-            println!("  {} ({} session{})", label, count, if *count == 1 { "" } else { "s" });
-        }
+    let limit = if full { rows.len() } else { 20 };
+    let visible: Vec<&Row> = rows.iter().rev().take(limit).collect();
+
+    let task_w = visible.iter().map(|r| r.task.len().max(4)).max().unwrap_or(4);
+    println!("{:<11}  {:<task_w$}  Start  End    #", "Day", "Task", task_w = task_w);
+    println!("{}", "─".repeat(11 + 2 + task_w + 2 + 5 + 2 + 5 + 2 + 1));
+    for r in &visible {
+        let end  = add_mins_to_time(&r.last_start, r.last_dur);
+        let task = if r.task.is_empty() { "—".to_string() } else { r.task.clone() };
+        println!("{:<11}  {:<task_w$}  {}  {}  {}", fmt_date(&r.day), task, r.first_start, end, r.count, task_w = task_w);
+    }
+    if !full && rows.len() > 20 {
+        println!("\n  {} older rows hidden — run `tomodoro history --full` to see all", rows.len() - 20);
+    }
+}
+
+fn fmt_date(date: &str) -> String {
+    const MONTHS: [&str; 12] = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    let mut p = date.splitn(3, '-');
+    let (y, mo, d) = match (p.next(), p.next(), p.next()) {
+        (Some(y), Some(mo), Some(d)) => (y, mo, d),
+        _ => return date.to_string(),
+    };
+    let month = mo.parse::<usize>().ok()
+        .and_then(|n| MONTHS.get(n.saturating_sub(1)))
+        .unwrap_or(&"???");
+    format!("{} {} {}", d, month, y)
+}
+
+fn add_mins_to_time(time: &str, mins: u64) -> String {
+    let h: u64 = time.get(..2).and_then(|s| s.parse().ok()).unwrap_or(0);
+    let m: u64 = time.get(3..5).and_then(|s| s.parse().ok()).unwrap_or(0);
+    let total = h * 60 + m + mins;
+    format!("{:02}:{:02}", (total / 60) % 24, total % 60)
+}
+
+fn fmt_duration(mins: u64) -> String {
+    let h = mins / 60;
+    let m = mins % 60;
+    match (h, m) {
+        (0, m) => format!("{}m", m),
+        (h, 0) => format!("{}h", h),
+        (h, m) => format!("{}h {}m", h, m),
     }
 }
 

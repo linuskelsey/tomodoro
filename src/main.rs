@@ -294,7 +294,7 @@ fn main() -> io::Result<()> {
 
     if args.iter().any(|a| a == "--help" || a == "-h") {
         println!(
-            "tomodoro {}\n\nUSAGE:\n    tomodoro [OPTIONS]\n    tomodoro <COMMAND>\n\nOPTIONS:\n    -h, --help               Print this help\n    -V, --version            Print version\n    -E, --endless            Endless animation mode (no timers, no sounds)\n    -u, --use <version>      Launch a specific installed version\n\nCOMMANDS:\n    install <version>        Install a version from crates.io\n    list                     List installed versions\n    history                  Show session history\n    completions <shell>      Print shell completion script (bash, zsh, fish)",
+            "tomodoro {}\n\nUSAGE:\n    tomodoro [OPTIONS]\n    tomodoro <COMMAND>\n\nOPTIONS:\n    -h, --help               Print this help\n    -V, --version            Print version\n    -E, --endless            Endless animation mode (no timers, no sounds)\n    -u, --use <version>      Launch a specific installed version\n\nCOMMANDS:\n    install <version>        Install a version from crates.io\n    list                     List installed versions\n    history [--full]         Show session history (last 20 days by default)\n    completions <shell>      Print shell completion script (bash, zsh, fish)",
             env!("CARGO_PKG_VERSION")
         );
         return Ok(());
@@ -306,7 +306,11 @@ fn main() -> io::Result<()> {
             None => { eprintln!("Usage: tomodoro install <version>"); return Ok(()); }
         },
         Some("list") => return cmd_list(),
-        Some("history") => { history::print_history(); return Ok(()); },
+        Some("history") => {
+            let full = args.iter().any(|a| a == "--full");
+            history::print_history(full);
+            return Ok(());
+        },
         Some("completions") => match args.get(2).map(|s| s.as_str()) {
             Some("bash") => { print!("{}", COMPLETION_BASH); return Ok(()); }
             Some("zsh")  => { print!("{}", COMPLETION_ZSH);  return Ok(()); }
