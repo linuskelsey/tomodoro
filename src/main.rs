@@ -22,7 +22,7 @@ use ratatui::{backend::CrosstermBackend, Terminal};
 use animation::{Animation, RenderMode};
 use config::AppConfig;
 use timer::{Phase, Timer, TimerConfig};
-use ui::{EditState, LabelState};
+use ui::{EditState, LabelState, ProfilePickerState};
 
 const TICK_MS: u64 = 100;
 const SOUND_FOCUS_END: &[u8] = include_bytes!("../sounds/effects/bell.oga");
@@ -386,12 +386,40 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
     let mut last_ambient: Option<usize> = None;
     let update_rx = if cfg.update_check { Some(version_check()) } else { None };
     let mut update_notice: Option<String> = None;
-    let timer_cfg = TimerConfig {
+    let base_timer_cfg = TimerConfig {
         work_secs: cfg.focus * 60,
         short_break_secs: cfg.short_break * 60,
         long_break_secs: cfg.long_break * 60,
         long_break_interval: cfg.long_break_interval,
     };
+
+    let mut profile_entries: Vec<(String, String, TimerConfig)> = cfg.profiles.iter()
+        .map(|(name, p)| {
+            let f = p.focus.unwrap_or(cfg.focus);
+            let s = p.short_break.unwrap_or(cfg.short_break);
+            let l = p.long_break.unwrap_or(cfg.long_break);
+            (
+                name.clone(),
+                format!("{}m / {}m / {}m", f, s, l),
+                TimerConfig {
+                    work_secs: f * 60,
+                    short_break_secs: s * 60,
+                    long_break_secs: l * 60,
+                    long_break_interval: cfg.long_break_interval,
+                },
+            )
+        })
+        .collect();
+    profile_entries.sort_by_key(|(n, _, _)| n.clone());
+
+    let default_sel = cfg.default_profile.as_deref()
+        .and_then(|dp| profile_entries.iter().position(|(n, _, _)| n == dp))
+        .unwrap_or(0);
+
+    let timer_cfg = cfg.default_profile.as_deref()
+        .and_then(|dp| profile_entries.iter().find(|(n, _, _)| n == dp))
+        .map(|(_, _, tc)| tc.clone())
+        .unwrap_or(base_timer_cfg);
     let render_mode = match cfg.render_mode.as_str() {
         "quarter" => RenderMode::Quarter,
         "braille" => RenderMode::Braille,
@@ -415,8 +443,18 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
     let mut last_beep_sec: Option<u64> = None;
     let mut ding_pending: u8 = 0;
     let mut beep_pending: u8 = 0;
+    let has_profiles = !profile_entries.is_empty();
     let mut show_help = false;
-    let mut edit_state: Option<EditState> = if endless || cfg.auto_start { None } else { Some(EditState::from_config(&timer_cfg)) };
+    let mut profile_picker: Option<ProfilePickerState> = if !endless && !cfg.auto_start && has_profiles {
+        Some(ProfilePickerState { entries: profile_entries, selected: default_sel })
+    } else {
+        None
+    };
+    let mut edit_state: Option<EditState> = if endless || cfg.auto_start || has_profiles {
+        None
+    } else {
+        Some(EditState::from_config(&timer_cfg))
+    };
     let mut label_state: Option<LabelState> = None;
     let mut task_label: Option<String> = None;
     let mut startup = !endless && !cfg.auto_start;
@@ -439,7 +477,7 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                 (!right && lit, right && lit)
             });
             let muted = pre_mute_volume.is_some();
-            ui::draw(f, &timer, &anim, show_help, edit_state.as_ref(), label_state.as_ref(), startup, volume, endless, fl, task_label.as_deref(), update_notice.as_deref(), bar_mode_override, config_warnings.as_deref(), muted);
+            ui::draw(f, &timer, &anim, show_help, edit_state.as_ref(), profile_picker.as_ref(), label_state.as_ref(), startup, volume, endless, fl, task_label.as_deref(), update_notice.as_deref(), bar_mode_override, config_warnings.as_deref(), muted);
         })?;
 
         if !endless {
@@ -499,6 +537,39 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                                 }
                                 (KeyCode::Char('?'), _) => show_help = !show_help,
                                 _ => {}
+                            }
+                        } else if profile_picker.is_some() {
+                            let mut close_picker = false;
+                            let mut apply_config: Option<(TimerConfig, String)> = None;
+                            let mut show_custom = false;
+                            if let Some(ref mut pp) = profile_picker {
+                                match (key.code, key.modifiers) {
+                                    (KeyCode::Char('q'), _)
+                                    | (KeyCode::Char('c'), KeyModifiers::CONTROL)
+                                    | (KeyCode::Esc, _) => { sync_inhibit(&mut inhibit, false); return Ok(()); }
+                                    (KeyCode::Up, _) => { if pp.selected > 0 { pp.selected -= 1; } }
+                                    (KeyCode::Down, _) => { if pp.selected < pp.entries.len() { pp.selected += 1; } }
+                                    (KeyCode::Enter, _) => {
+                                        if pp.selected < pp.entries.len() {
+                                            let (name, _, tc) = &pp.entries[pp.selected];
+                                            apply_config = Some((tc.clone(), name.clone()));
+                                        } else {
+                                            show_custom = true;
+                                        }
+                                        close_picker = true;
+                                    }
+                                    _ => {}
+                                }
+                            }
+                            if close_picker { profile_picker = None; }
+                            if let Some((tc, name)) = apply_config {
+                                timer.apply_config(tc);
+                                task_label = Some(name);
+                                last_beep_sec = None;
+                                startup = false;
+                            }
+                            if show_custom {
+                                edit_state = Some(EditState::from_config(&timer.config));
                             }
                         } else if let Some(ref mut es) = edit_state {
                             match key.code {

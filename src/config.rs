@@ -1,4 +1,12 @@
 use serde::Deserialize;
+
+#[derive(Deserialize, Default)]
+pub struct ProfileConfig {
+    pub focus: Option<u64>,
+    pub short_break: Option<u64>,
+    pub long_break: Option<u64>,
+}
+
 #[derive(Deserialize)]
 #[serde(default)]
 pub struct AppConfig {
@@ -16,6 +24,8 @@ pub struct AppConfig {
     pub notifications: bool,
     pub update_check: bool,
     pub bar_style: Option<String>,
+    pub default_profile: Option<String>,
+    pub profiles: std::collections::HashMap<String, ProfileConfig>,
     #[serde(skip)]
     pub warnings: Vec<String>,
 }
@@ -37,6 +47,8 @@ impl Default for AppConfig {
             notifications: false,
             update_check: true,
             bar_style: None,
+            default_profile: None,
+            profiles: std::collections::HashMap::new(),
             warnings: Vec::new(),
         }
     }
@@ -57,6 +69,8 @@ const KNOWN_KEYS: &[&str] = &[
     "notifications",
     "update_check",
     "bar_style",
+    "default_profile",
+    "profiles",
 ];
 
 const DEFAULT_CONFIG: &str = r#"# tomodoro configuration
@@ -97,6 +111,16 @@ const DEFAULT_CONFIG: &str = r#"# tomodoro configuration
 
 # Lock the progress bar to a specific style regardless of render mode: "half", "quarter", "braille"
 # bar_style = "half"
+
+# Profile to load at startup without showing the picker (must match a [profiles.*] name below)
+# default_profile = "deep"
+
+# Timer profiles — named presets selectable at startup
+# Each accepts: focus, short_break, long_break (minutes); omitted values fall back to the defaults above
+# [profiles.deep]
+# focus = 50
+# short_break = 10
+# long_break = 30
 "#;
 
 impl AppConfig {
@@ -159,15 +183,22 @@ impl AppConfig {
             .cloned()
             .collect();
 
-        let migration_needed = KNOWN_KEYS.iter().any(|k| {
-            !text.lines().any(|line| {
-                let s = line.trim().trim_start_matches('#').trim();
-                s.starts_with(&format!("{} =", k)) || s.starts_with(&format!("{}=", k))
-            })
-        });
+        let migration_needed = KNOWN_KEYS.iter()
+            .filter(|&&k| k != "profiles")
+            .any(|k| {
+                !text.lines().any(|line| {
+                    let s = line.trim().trim_start_matches('#').trim();
+                    s.starts_with(&format!("{} =", k)) || s.starts_with(&format!("{}=", k))
+                })
+            });
 
         if !dirty_keys.is_empty() || migration_needed {
-            let new_content = build_config_content(&config, &explicit);
+            let profile_text = extract_profile_sections(&text);
+            let mut new_content = build_config_content(&config, &explicit);
+            if !profile_text.trim().is_empty() {
+                new_content.push('\n');
+                new_content.push_str(&profile_text);
+            }
             let _ = std::fs::write(&path, &new_content);
         }
 
@@ -300,8 +331,30 @@ fn build_config_content(config: &AppConfig, explicit: &std::collections::HashSet
         let s = config.bar_style.as_deref().unwrap_or("half");
         set(&mut out, "# bar_style = \"half\"", &format!("bar_style = \"{}\"", s));
     }
+    if let Some(ref s) = config.default_profile {
+        set(&mut out, "# default_profile = \"deep\"", &format!("default_profile = \"{}\"", s));
+    }
 
     out
+}
+
+fn extract_profile_sections(text: &str) -> String {
+    let mut result = String::new();
+    let mut in_profile = false;
+    for line in text.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("[profiles.") {
+            in_profile = true;
+            result.push_str(line);
+            result.push('\n');
+        } else if trimmed.starts_with('[') {
+            in_profile = false;
+        } else if in_profile {
+            result.push_str(line);
+            result.push('\n');
+        }
+    }
+    result
 }
 
 fn fmt_float(v: f32) -> String {

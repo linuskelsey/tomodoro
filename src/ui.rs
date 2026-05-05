@@ -13,6 +13,11 @@ pub struct LabelState {
     pub text: String,
 }
 
+pub struct ProfilePickerState {
+    pub entries: Vec<(String, String, TimerConfig)>, // (name, "Xm / Xm / Xm", resolved config)
+    pub selected: usize, // 0..entries.len() = named profiles; entries.len() = Custom
+}
+
 pub struct EditState {
     pub fields: [(u64, u64); 3],  // (hours, minutes) per field
     pub selected: usize,
@@ -42,7 +47,7 @@ impl EditState {
     }
 }
 
-pub fn draw(f: &mut Frame, timer: &Timer, anim: &Animation, show_help: bool, edit_state: Option<&EditState>, label_state: Option<&LabelState>, startup: bool, volume: f32, endless: bool, vol_flash: (bool, bool), task_label: Option<&str>, update_notice: Option<&str>, bar_mode_override: Option<RenderMode>, config_warnings: Option<&[String]>, muted: bool) {
+pub fn draw(f: &mut Frame, timer: &Timer, anim: &Animation, show_help: bool, edit_state: Option<&EditState>, profile_picker: Option<&ProfilePickerState>, label_state: Option<&LabelState>, startup: bool, volume: f32, endless: bool, vol_flash: (bool, bool), task_label: Option<&str>, update_notice: Option<&str>, bar_mode_override: Option<RenderMode>, config_warnings: Option<&[String]>, muted: bool) {
     let area = f.area();
     if endless {
         draw_animation(f, timer, anim, area);
@@ -68,7 +73,9 @@ pub fn draw(f: &mut Frame, timer: &Timer, anim: &Animation, show_help: bool, edi
     if show_help {
         draw_help(f, area);
     }
-    if let Some(es) = edit_state {
+    if let Some(pp) = profile_picker {
+        draw_profile_picker(f, pp, area);
+    } else if let Some(es) = edit_state {
         draw_edit(f, es, area, startup);
     }
     if let Some(ls) = label_state {
@@ -438,6 +445,49 @@ fn draw_config_warnings(f: &mut Frame, area: Rect, warnings: &[String]) {
                         Line::from(Span::styled(" any key to dismiss ", dim)).right_aligned(),
                     ),
             ),
+        popup,
+    );
+}
+
+fn draw_profile_picker(f: &mut Frame, pp: &ProfilePickerState, area: Rect) {
+    let item_count = pp.entries.len() + 1; // named profiles + Custom
+    let w = 44u16;
+    let h = (item_count as u16 + 4).min(area.height); // border(2) + hint(1) + blank(1) + items
+    let x = area.x + area.width.saturating_sub(w) / 2;
+    let y = area.y + area.height.saturating_sub(h) / 2;
+    let popup = Rect { x, y, width: w.min(area.width), height: h };
+
+    let hint_dim = Style::default().fg(Color::Rgb(60, 60, 60));
+    let mut lines: Vec<Line> = vec![Line::from(Span::raw(""))];
+
+    for (i, (name, desc, _)) in pp.entries.iter().enumerate() {
+        let sel = i == pp.selected;
+        let cursor = if sel { "▶  " } else { "   " };
+        let name_sty = if sel {
+            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(Color::White)
+        };
+        lines.push(Line::from(vec![
+            Span::styled(format!(" {}{:<16}", cursor, name), name_sty),
+            Span::styled(format!(" {}", desc), Style::default().fg(Color::Rgb(100, 100, 100))),
+        ]));
+    }
+
+    let custom_sel = pp.selected == pp.entries.len();
+    let cursor = if custom_sel { "▶  " } else { "   " };
+    let custom_sty = if custom_sel {
+        Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(Color::Gray)
+    };
+    lines.push(Line::from(Span::styled(format!(" {}Custom…", cursor), custom_sty)));
+    lines.push(Line::from(Span::styled("  ↑↓ navigate   Enter select   q quit", hint_dim)));
+
+    f.render_widget(Clear, popup);
+    f.render_widget(
+        Paragraph::new(lines)
+            .block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(Color::DarkGray)).title(" tomodoro ")),
         popup,
     );
 }

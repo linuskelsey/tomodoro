@@ -48,7 +48,7 @@ pub fn print_history(full: bool) {
 
     println!("Sessions:    {}", sessions.len());
     println!("Avg session: {}", fmt_duration(avg_session));
-    println!("Avg per day: {:.1} sessions", avg_per_day);
+    println!("Avg day:     {:.1} sessions", avg_per_day);
     if let Some((day, mins)) = best_day {
         println!("Best day:    {} ({})", fmt_date(day), fmt_duration(*mins));
     }
@@ -57,9 +57,9 @@ pub fn print_history(full: bool) {
     struct Row {
         day: String,
         task: String,
-        first_start: String,
-        last_start: String,
-        last_dur: u64,
+        first_end: String,  // timestamp of first session (recorded at end)
+        first_dur: u64,     // duration of first session (to compute start)
+        last_end: String,   // timestamp of last session (recorded at end)
         count: usize,
     }
     let mut rows: Vec<Row> = Vec::new();
@@ -68,11 +68,10 @@ pub fn print_history(full: bool) {
         let time = s.timestamp.get(11..16).unwrap_or("??:??").to_string();
         let task = s.label.clone().unwrap_or_default();
         if let Some(r) = rows.iter_mut().find(|r| r.day == day && r.task == task) {
-            r.last_start = time;
-            r.last_dur = s.duration_mins;
+            r.last_end = time;
             r.count += 1;
         } else {
-            rows.push(Row { day, task, first_start: time.clone(), last_start: time, last_dur: s.duration_mins, count: 1 });
+            rows.push(Row { day, task, first_end: time.clone(), first_dur: s.duration_mins, last_end: time, count: 1 });
         }
     }
 
@@ -83,9 +82,9 @@ pub fn print_history(full: bool) {
     println!("{:<11}  {:<task_w$}  Start  End    #", "Day", "Task", task_w = task_w);
     println!("{}", "─".repeat(11 + 2 + task_w + 2 + 5 + 2 + 5 + 2 + 1));
     for r in &visible {
-        let end  = add_mins_to_time(&r.last_start, r.last_dur);
-        let task = if r.task.is_empty() { "—".to_string() } else { r.task.clone() };
-        println!("{:<11}  {:<task_w$}  {}  {}  {}", fmt_date(&r.day), task, r.first_start, end, r.count, task_w = task_w);
+        let start = sub_mins_from_time(&r.first_end, r.first_dur);
+        let task  = if r.task.is_empty() { "—".to_string() } else { r.task.clone() };
+        println!("{:<11}  {:<task_w$}  {}  {}  {}", fmt_date(&r.day), task, start, r.last_end, r.count, task_w = task_w);
     }
     if !full && rows.len() > 20 {
         println!("\n  {} older rows hidden — run `tomodoro history --full` to see all", rows.len() - 20);
@@ -105,10 +104,10 @@ fn fmt_date(date: &str) -> String {
     format!("{} {} {}", d, month, y)
 }
 
-fn add_mins_to_time(time: &str, mins: u64) -> String {
+fn sub_mins_from_time(time: &str, mins: u64) -> String {
     let h: u64 = time.get(..2).and_then(|s| s.parse().ok()).unwrap_or(0);
     let m: u64 = time.get(3..5).and_then(|s| s.parse().ok()).unwrap_or(0);
-    let total = h * 60 + m + mins;
+    let total = (h * 60 + m).saturating_sub(mins);
     format!("{:02}:{:02}", (total / 60) % 24, total % 60)
 }
 
