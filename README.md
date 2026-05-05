@@ -102,7 +102,26 @@ countdown_beeps = 5    # beep seconds before break ends
 notifications = false  # notify-send on phase end
 update_check = true    # notify if a newer version is available on startup
 bar_style = "half"     # lock progress bar style: half | quarter | braille (default: follows render mode)
+default_profile = "deep"  # load this profile silently at startup (skips picker)
+bell_sound = "~/.config/tomodoro/sounds/effects/bell.mp3"  # custom bell (ogg/mp3/wav/flac)
+beep_sound = "~/.config/tomodoro/sounds/effects/beep.mp3"  # custom countdown beep
 ```
+
+Timer profiles are defined as TOML tables and appear in the startup picker:
+
+```toml
+[profiles.deep]
+focus = 50
+short_break = 10
+long_break = 30
+
+[profiles.quick]
+focus = 15
+short_break = 3
+long_break = 10
+```
+
+Any field can be omitted — missing values fall back to the scalar defaults above. Custom audio files can be placed in `~/.config/tomodoro/sounds/effects/` (created automatically on first launch).
 
 ## Features
 
@@ -121,6 +140,8 @@ bar_style = "half"     # lock progress bar style: half | quarter | braille (defa
 - **Phase indicators** — `F` (focus), `B` (short break), `LB` (long break)
 - **Endless mode** — `tomodoro -E` runs animations full-screen with no timer, sounds, or UI chrome; `[`/`]` control ambient volume, `m` mutes/unmutes, `?` shows available controls
 - **Update check** — checks crates.io on startup and notifies if a newer version is available; dismissible with any key; disable with `update_check = false`
+- **Timer profiles** — define named presets in config as `[profiles.name]`; startup shows a picker when profiles exist; selecting a profile auto-labels the session; `default_profile` loads one silently (pairs with `auto_start = true`)
+- **Custom effect sounds** — override the bell and countdown beep with any ogg, mp3, wav, or flac file via `bell_sound` and `beep_sound` in config; place files in `~/.config/tomodoro/sounds/effects/`
 - **Bar style** — lock the progress bar to `half`, `quarter`, or `braille` via `bar_style` in config, independent of the animation render mode
 - **Shell completions** — `tomodoro completions <bash|zsh|fish>` prints a completion script; pipe into your shell's completion setup for tab completion
 - **Version management** — install and switch between old releases with `tomodoro install`, `list`, and `--use`

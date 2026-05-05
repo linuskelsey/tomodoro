@@ -6,9 +6,14 @@
 - Endless mode volume controls — `[`/`]` now work in endless mode; volume overlay appears top-left matching regular mode header position; persists for 500ms; shows `vol: muted` when muted
 - Endless mode help — `?` opens a dedicated help overlay listing endless-specific controls
 - Session history redesign — `tomodoro history` now shows a grouped table by day and task with start time, end time, and session count per row; summary stats at the top (avg session length, avg sessions per day, best day); defaults to last 20 rows; pass `--full` to show complete history
+- Timer profiles — define named presets in config as `[profiles.name]` with `focus`, `short_break`, `long_break` fields; startup screen shows a profile picker when profiles are defined; selecting a profile auto-labels the session with the profile name
+- `default_profile` config key — loads a named profile silently at startup; works with `auto_start = true` to skip the picker entirely
+- Custom effect sounds — `bell_sound` and `beep_sound` config keys accept a path to any ogg, mp3, wav, or flac file; falls back to built-in sounds if not set or file missing
+- Sounds folder — `~/.config/tomodoro/sounds/effects/` and `~/.config/tomodoro/sounds/tracks/` created automatically on first launch
 
 ### Changed
 - Update check now uses the crates.io HTTP API via `curl` instead of `cargo search`; faster and no longer requires cargo on PATH
+- Session history start time now correctly reflects when the session began rather than when it ended
 
 ### Fixed
 - Install instructions now prominently surface the `libasound2-dev` requirement for Debian/Ubuntu/Mint users at the point of installation, not only in the Requirements section
