@@ -181,13 +181,18 @@ fn version_check() -> mpsc::Receiver<String> {
 }
 
 fn fetch_latest_version() -> Option<String> {
-    let out = std::process::Command::new("cargo")
-        .args(["search", "tomodoro", "--limit", "1"])
+    let out = std::process::Command::new("curl")
+        .args([
+            "-sf",
+            "--max-time", "5",
+            "-H", "User-Agent: tomodoro",
+            "https://crates.io/api/v1/crates/tomodoro",
+        ])
         .output()
         .ok()?;
-    let stdout = String::from_utf8(out.stdout).ok()?;
-    let line = stdout.lines().find(|l| l.starts_with("tomodoro "))?;
-    Some(line.split('"').nth(1)?.to_string())
+    let text = String::from_utf8(out.stdout).ok()?;
+    let json: serde_json::Value = serde_json::from_str(&text).ok()?;
+    json["crate"]["newest_version"].as_str().map(|s| s.to_string())
 }
 
 fn parse_version(v: &str) -> Option<(u32, u32, u32)> {
