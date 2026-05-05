@@ -33,6 +33,7 @@ On launch, a setup screen lets you choose your focus and break durations. Use `T
 | `e` | Edit timer durations |
 | `t` | Set task label |
 | `[` / `]` | Volume down / up |
+| `m` | Mute / unmute |
 | `←` / `→` | Cycle animation themes |
 | `↑` / `↓` | Cycle render modes (Half → Quarter → Braille) |
 | `?` | Toggle help overlay |
@@ -45,7 +46,8 @@ On launch, a setup screen lets you choose your focus and break durations. Use `T
 tomodoro --help                 # list flags and subcommands
 tomodoro --version              # print version
 tomodoro --endless              # endless animation mode (also -E)
-tomodoro history                # show session history
+tomodoro history                # show session history (last 20 rows)
+tomodoro history --full         # show complete session history
 tomodoro completions bash       # print bash completion script
 tomodoro completions zsh        # print zsh completion script
 tomodoro completions fish       # print fish completion script
@@ -74,8 +76,11 @@ tomodoro completions fish > ~/.config/fish/completions/tomodoro.fish
 | Key | Action |
 |-----|--------|
 | `Space` | Pause / resume animation |
+| `[` / `]` | Volume down / up |
+| `m` | Mute / unmute |
 | `←` / `→` | Cycle animation themes |
 | `↑` / `↓` | Cycle render modes |
+| `?` | Show help overlay |
 | `q` / `Esc` / `Ctrl+C` | Quit |
 
 ## Config
@@ -107,15 +112,15 @@ bar_style = "half"     # lock progress bar style: half | quarter | braille (defa
 - **Config file** — `~/.config/tomodoro/config.toml` auto-created on first launch; set persistent defaults for themes, durations, volume, and more; invalid or unrecognised values are reset to defaults with an in-app warning; new keys added by updates are merged in automatically without overwriting existing settings
 - **Desktop notifications** — optional `notify-send` alerts on phase end; enable with `notifications = true` in config
 - **Task labeling** — press `t` mid-session to name the current task; shown in the header; logged with each completed session
-- **Session history** — completed focus sessions saved to `~/.local/share/tomodoro/history.json`; run `tomodoro history` to see totals and task breakdown
+- **Session history** — completed focus sessions saved to `~/.local/share/tomodoro/history.json`; run `tomodoro history` to see a grouped table by day and task (start time, end time, session count) with summary stats (avg session length, avg sessions per day, best day); shows last 20 rows by default — pass `--full` for complete history
 - **8 animated themes** — waves, rain, falling leaves, starfield, fireplace, aurora borealis, cherry blossom, sunset; all AI-crafted scenes with detailed foreground elements; set different themes for focus and break phases
 - **3 render modes** — half-block, quarter-block, or braille; increasing pixel density per terminal cell
 - **Coloured progress bar** — matches the current theme; uses braille dots in braille mode
 - **Ambient audio** — looping background track per scene; all 8 themes covered; plays while the timer runs; volume follows `[`/`]`
 - **Bell sounds** — single bell when a focus session ends; countdown beeps for the last N seconds of a break (configurable)
 - **Phase indicators** — `F` (focus), `B` (short break), `LB` (long break)
-- **Endless mode** — `tomodoro -E` runs animations full-screen with no timer, sounds, or UI chrome; pure ambient display
-- **Update check** — notifies on startup if a newer version is available; dismissible with any key; disable with `update_check = false`
+- **Endless mode** — `tomodoro -E` runs animations full-screen with no timer, sounds, or UI chrome; `[`/`]` control ambient volume, `m` mutes/unmutes, `?` shows available controls
+- **Update check** — checks crates.io on startup and notifies if a newer version is available; dismissible with any key; disable with `update_check = false`
 - **Bar style** — lock the progress bar to `half`, `quarter`, or `braille` via `bar_style` in config, independent of the animation render mode
 - **Shell completions** — `tomodoro completions <bash|zsh|fish>` prints a completion script; pipe into your shell's completion setup for tab completion
 - **Version management** — install and switch between old releases with `tomodoro install`, `list`, and `--use`
