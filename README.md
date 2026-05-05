@@ -15,6 +15,12 @@ cargo install tomodoro
 
 Requires Rust — install via [rustup](https://rustup.rs) if you don't have it.
 
+**Debian / Ubuntu / Mint:** audio requires `libasound2-dev`. If the build fails, install it first:
+
+```sh
+sudo apt install libasound2-dev
+```
+
 ## Usage
 
 On launch, a setup screen lets you choose your focus and break durations. Use `Tab` to move between fields, `←`/`→` to select hours or minutes, and `↑`/`↓` to change the value — or just type a number directly. Press `Enter` to start, `Esc` to quit.

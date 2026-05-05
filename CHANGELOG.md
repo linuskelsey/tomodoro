@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.6.0] - unreleased
+### Fixed
+- Install instructions now prominently surface the `libasound2-dev` requirement for Debian/Ubuntu/Mint users at the point of installation, not only in the Requirements section
+
+---
+
 ## [0.5.2] - 2026-05-04
 ### Added
 - Config validation — unrecognised keys and out-of-range values are caught on launch; bad entries are removed from the config file, reset to defaults, and reported via an in-app warning popup dismissible with any key
