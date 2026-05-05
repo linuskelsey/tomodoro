@@ -407,6 +407,7 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
     let mut anim = Animation::new_with(focus_theme, break_theme, render_mode);
     let mut volume: f32 = cfg.volume.clamp(0.0, 1.0);
     let mut vol_flash: Option<(bool, Instant)> = None;
+    let mut pre_mute_volume: Option<f32> = None;
     let mut last_beep_sec: Option<u64> = None;
     let mut ding_pending: u8 = 0;
     let mut beep_pending: u8 = 0;
@@ -430,10 +431,11 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
         }
         terminal.draw(|f| {
             let fl = vol_flash.map_or((false, false), |(right, t)| {
-                let lit = t.elapsed() < Duration::from_millis(200);
+                let lit = t.elapsed() < Duration::from_millis(500);
                 (!right && lit, right && lit)
             });
-            ui::draw(f, &timer, &anim, show_help, edit_state.as_ref(), label_state.as_ref(), startup, volume, endless, fl, task_label.as_deref(), update_notice.as_deref(), bar_mode_override, config_warnings.as_deref());
+            let muted = pre_mute_volume.is_some();
+            ui::draw(f, &timer, &anim, show_help, edit_state.as_ref(), label_state.as_ref(), startup, volume, endless, fl, task_label.as_deref(), update_notice.as_deref(), bar_mode_override, config_warnings.as_deref(), muted);
         })?;
 
         if !endless {
@@ -468,6 +470,30 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                                 (KeyCode::Left, _) => anim.prev_theme(&timer.phase),
                                 (KeyCode::Up, _) => anim.next_mode(),
                                 (KeyCode::Down, _) => anim.prev_mode(),
+                                (KeyCode::Char(']'), _) => {
+                                    volume = ((volume * 10.0 + 1.0).round() / 10.0).min(1.0);
+                                    pre_mute_volume = None;
+                                    vol_flash = Some((true, Instant::now()));
+                                    let _ = ambient.send(AmbientCmd::Volume(volume));
+                                }
+                                (KeyCode::Char('['), _) => {
+                                    volume = ((volume * 10.0 - 1.0).round() / 10.0).max(0.0);
+                                    pre_mute_volume = None;
+                                    vol_flash = Some((false, Instant::now()));
+                                    let _ = ambient.send(AmbientCmd::Volume(volume));
+                                }
+                                (KeyCode::Char('m'), _) => {
+                                    if let Some(v) = pre_mute_volume.take() {
+                                        volume = v;
+                                        vol_flash = Some((true, Instant::now()));
+                                    } else {
+                                        pre_mute_volume = Some(volume);
+                                        volume = 0.0;
+                                        vol_flash = Some((false, Instant::now()));
+                                    }
+                                    let _ = ambient.send(AmbientCmd::Volume(volume));
+                                }
+                                (KeyCode::Char('?'), _) => show_help = !show_help,
                                 _ => {}
                             }
                         } else if let Some(ref mut es) = edit_state {
@@ -565,12 +591,25 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                                 }
                                 (KeyCode::Char(']'), _) => {
                                     volume = ((volume * 10.0 + 1.0).round() / 10.0).min(1.0);
+                                    pre_mute_volume = None;
                                     vol_flash = Some((true, Instant::now()));
                                     let _ = ambient.send(AmbientCmd::Volume(volume));
                                 }
                                 (KeyCode::Char('['), _) => {
                                     volume = ((volume * 10.0 - 1.0).round() / 10.0).max(0.0);
+                                    pre_mute_volume = None;
                                     vol_flash = Some((false, Instant::now()));
+                                    let _ = ambient.send(AmbientCmd::Volume(volume));
+                                }
+                                (KeyCode::Char('m'), _) => {
+                                    if let Some(v) = pre_mute_volume.take() {
+                                        volume = v;
+                                        vol_flash = Some((true, Instant::now()));
+                                    } else {
+                                        pre_mute_volume = Some(volume);
+                                        volume = 0.0;
+                                        vol_flash = Some((false, Instant::now()));
+                                    }
                                     let _ = ambient.send(AmbientCmd::Volume(volume));
                                 }
                                 (KeyCode::Right, _) => anim.next_theme(&timer.phase),

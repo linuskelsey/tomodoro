@@ -42,11 +42,13 @@ impl EditState {
     }
 }
 
-pub fn draw(f: &mut Frame, timer: &Timer, anim: &Animation, show_help: bool, edit_state: Option<&EditState>, label_state: Option<&LabelState>, startup: bool, volume: f32, endless: bool, vol_flash: (bool, bool), task_label: Option<&str>, update_notice: Option<&str>, bar_mode_override: Option<RenderMode>, config_warnings: Option<&[String]>) {
+pub fn draw(f: &mut Frame, timer: &Timer, anim: &Animation, show_help: bool, edit_state: Option<&EditState>, label_state: Option<&LabelState>, startup: bool, volume: f32, endless: bool, vol_flash: (bool, bool), task_label: Option<&str>, update_notice: Option<&str>, bar_mode_override: Option<RenderMode>, config_warnings: Option<&[String]>, muted: bool) {
     let area = f.area();
     if endless {
         draw_animation(f, timer, anim, area);
+        if show_help { draw_endless_help(f, area); }
         if let Some(v) = update_notice { draw_update_notice(f, area, v); }
+        if vol_flash.0 || vol_flash.1 { draw_endless_volume(f, area, volume, vol_flash.1, muted); }
         return;
     }
     let rows = Layout::default()
@@ -308,6 +310,7 @@ fn draw_help(f: &mut Frame, area: Rect) {
         ("e",      "edit timers"),
         ("t",      "set task label"),
         ("[  ]",   "volume down / up"),
+        ("m",      "mute / unmute"),
         ("← →",   "cycle theme"),
         ("↑ ↓",   "cycle render mode"),
         ("q",      "quit"),
@@ -355,6 +358,57 @@ fn draw_update_notice(f: &mut Frame, area: Rect, version: &str) {
                             .right_aligned(),
                     ),
             ),
+        popup,
+    );
+}
+
+fn draw_endless_help(f: &mut Frame, area: Rect) {
+    let rows: &[(&str, &str)] = &[
+        ("space",  "pause / resume"),
+        ("[  ]",   "volume down / up"),
+        ("m",      "mute / unmute"),
+        ("← →",   "cycle theme"),
+        ("↑ ↓",   "cycle render mode"),
+        ("?",      "close help"),
+        ("q",      "quit"),
+    ];
+
+    let w = 32u16;
+    let h = rows.len() as u16 + 2;
+    let x = area.x + area.width.saturating_sub(w) / 2;
+    let y = area.y + area.height.saturating_sub(h) / 2;
+    let popup = Rect { x, y, width: w.min(area.width), height: h.min(area.height) };
+
+    let lines: Vec<Line> = rows.iter().map(|(key, desc)| {
+        Line::from(vec![
+            Span::styled(format!("  {:<6}", key), Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+            Span::styled(format!("  {}", desc), Style::default().fg(Color::White)),
+        ])
+    }).collect();
+
+    f.render_widget(Clear, popup);
+    f.render_widget(
+        Paragraph::new(lines)
+            .block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(Color::DarkGray))),
+        popup,
+    );
+}
+
+fn draw_endless_volume(f: &mut Frame, area: Rect, volume: f32, going_up: bool, muted: bool) {
+    let msg = if muted {
+        "  vol: muted  ".to_string()
+    } else {
+        let arrow = if going_up { "▲" } else { "▼" };
+        format!("  {} vol {}%  ", arrow, (volume * 100.0).round() as u8)
+    };
+    let w = (msg.len() as u16 + 2).min(area.width);
+    let h = 3u16;
+    let popup = Rect { x: area.x, y: area.y, width: w, height: h.min(area.height) };
+
+    f.render_widget(Clear, popup);
+    f.render_widget(
+        Paragraph::new(Line::from(Span::styled(msg, Style::default().fg(Color::White))))
+            .block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(Color::Rgb(80, 80, 80)))),
         popup,
     );
 }
