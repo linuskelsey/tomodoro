@@ -23,7 +23,7 @@ sudo apt install libasound2-dev
 
 ## Usage
 
-On launch, a setup screen lets you choose your focus and break durations. Use `Tab` to move between fields, `←`/`→` to select hours or minutes, and `↑`/`↓` to change the value — or just type a number directly. Press `Enter` to start, `Esc` to quit.
+On launch, if you have profiles defined in config a picker lets you choose one — or select Custom to set durations manually. Use `Tab` to move between fields, `←`/`→` to select hours or minutes, and `↑`/`↓` to change the value — or just type a number directly. Press `Enter` to start, `Esc` to quit.
 
 | Key | Action |
 |-----|--------|

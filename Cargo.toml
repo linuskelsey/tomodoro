@@ -12,6 +12,7 @@ exclude = [
     "CHANGELOG.md",
     "CONTRIBUTING.md",
     "demo.gif",
+    "demo.tape",
 ]
 
 [dependencies]

@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.6.0] - unreleased
+## [0.6.0] - 2026-05-05
 ### Added
 - Mute — `m` key mutes and unmutes in both regular and endless mode; restores previous volume level on unmute
 - Endless mode volume controls — `[`/`]` now work in endless mode; volume overlay appears top-left matching regular mode header position; persists for 500ms; shows `vol: muted` when muted
