@@ -139,18 +139,19 @@ fn draw_animation(f: &mut Frame, timer: &Timer, anim: &Animation, area: Rect) {
 
 fn draw_progress(f: &mut Frame, timer: &Timer, anim: &Animation, bar_mode: RenderMode, area: Rect) {
     let hint = " ? for help";
+    let version = concat!(" v", env!("CARGO_PKG_VERSION"), " ");
     let hint_width = hint.len() as u16 + 1;
+    let ver_width = version.len() as u16;
     let cols = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Min(0), Constraint::Length(hint_width)])
+        .constraints([Constraint::Length(ver_width), Constraint::Min(0), Constraint::Length(hint_width)])
         .split(area);
 
-    f.render_widget(
-        Paragraph::new(Span::styled(hint, Style::default().fg(Color::Rgb(60, 60, 60)))),
-        cols[1],
-    );
+    let dim = Style::default().fg(Color::Rgb(60, 60, 60));
+    f.render_widget(Paragraph::new(Span::styled(version, dim)), cols[0]);
+    f.render_widget(Paragraph::new(Span::styled(hint, dim)), cols[2]);
 
-    let area = cols[0];
+    let area = cols[1];
     let width = area.width as usize;
     let progress = timer.progress();
     let filled_color = anim.theme_color(&timer.phase);
