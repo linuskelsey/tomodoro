@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Install ALSA headers
+        run: sudo apt-get install -y libasound2-dev
+
+      - name: Format
+        run: cargo fmt --check
+
+      - name: Clippy
+        run: cargo clippy -- -D warnings
+
+      - name: Build
+        run: cargo build
+
+      - name: Version bumped
+        run: |
+          BASE=$(git show "origin/$GITHUB_BASE_REF:Cargo.toml" | grep '^version' | head -1 | cut -d'"' -f2)
+          PR=$(grep '^version' Cargo.toml | head -1 | cut -d'"' -f2)
+          verlte() {
+            [ "$(printf '%s\n' "$1" "$2" | sort -V | head -1)" = "$2" ]
+          }
+          if [ "$BASE" = "$PR" ]; then
+            echo "Error: version ($PR) unchanged from $GITHUB_BASE_REF — bump it before merging"
+            exit 1
+          fi
+          if verlte "$PR" "$BASE"; then
+            echo "Error: version ($PR) is not greater than $GITHUB_BASE_REF ($BASE)"
+            exit 1
+          fi
+          echo "Version: $BASE → $PR ✓"

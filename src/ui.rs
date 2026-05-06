@@ -312,20 +312,20 @@ fn draw_label_input(f: &mut Frame, ls: &LabelState, area: Rect) {
 
 fn draw_help(f: &mut Frame, area: Rect) {
     let rows: &[(&str, &str)] = &[
-        ("space",  "pause / resume"),
-        ("n",      "next phase"),
-        ("r",      "restart phase"),
-        ("e",      "edit timers"),
-        ("t",      "set task label"),
-        ("[  ]",   "volume down / up"),
-        ("m",      "mute / unmute"),
-        ("← →",   "cycle theme"),
-        ("↑ ↓",   "cycle render mode"),
-        ("q",      "quit"),
-        ("?",      "close help"),
+        ("space",    "pause / resume"),
+        ("n",        "next phase"),
+        ("r / gg",   "reset timer"),
+        ("e",        "edit timers"),
+        ("t",        "set task label"),
+        ("[  ]",     "volume down / up"),
+        ("m",        "mute / unmute"),
+        ("← → / h l", "cycle theme"),
+        ("↑ ↓ / j k", "cycle render mode"),
+        ("q",        "quit"),
+        ("?",        "close help"),
     ];
 
-    let w = 32u16;
+    let w = 36u16;
     let h = rows.len() as u16 + 2;
     let x = area.x + area.width.saturating_sub(w) / 2;
     let y = area.y + area.height.saturating_sub(h) / 2;
@@ -333,7 +333,7 @@ fn draw_help(f: &mut Frame, area: Rect) {
 
     let lines: Vec<Line> = rows.iter().map(|(key, desc)| {
         Line::from(vec![
-            Span::styled(format!("  {:<6}", key), Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+            Span::styled(format!("  {:<10}", key), Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
             Span::styled(format!("  {}", desc), Style::default().fg(Color::White)),
         ])
     }).collect();
@@ -372,16 +372,16 @@ fn draw_update_notice(f: &mut Frame, area: Rect, version: &str) {
 
 fn draw_endless_help(f: &mut Frame, area: Rect) {
     let rows: &[(&str, &str)] = &[
-        ("space",  "pause / resume"),
-        ("[  ]",   "volume down / up"),
-        ("m",      "mute / unmute"),
-        ("← →",   "cycle theme"),
-        ("↑ ↓",   "cycle render mode"),
-        ("?",      "close help"),
-        ("q",      "quit"),
+        ("space",    "pause / resume"),
+        ("[  ]",     "volume down / up"),
+        ("m",        "mute / unmute"),
+        ("← → h l", "cycle theme"),
+        ("↑ ↓ j k", "cycle render mode"),
+        ("?",        "close help"),
+        ("q",        "quit"),
     ];
 
-    let w = 32u16;
+    let w = 36u16;
     let h = rows.len() as u16 + 2;
     let x = area.x + area.width.saturating_sub(w) / 2;
     let y = area.y + area.height.saturating_sub(h) / 2;
@@ -389,7 +389,7 @@ fn draw_endless_help(f: &mut Frame, area: Rect) {
 
     let lines: Vec<Line> = rows.iter().map(|(key, desc)| {
         Line::from(vec![
-            Span::styled(format!("  {:<6}", key), Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+            Span::styled(format!("  {:<10}", key), Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
             Span::styled(format!("  {}", desc), Style::default().fg(Color::White)),
         ])
     }).collect();

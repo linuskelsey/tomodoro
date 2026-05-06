@@ -709,6 +709,10 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                                     last_beep_sec = None;
                                     sync_inhibit(&mut inhibit, timer.running && timer.phase == Phase::Work);
                                 }
+                                (KeyCode::Char('r'), _) => {
+                                    timer.reset();
+                                    sync_inhibit(&mut inhibit, timer.running && timer.phase == Phase::Work);
+                                }
                                 (KeyCode::Char('g'), _) => {
                                     key_buf.push('g');
                                     if key_buf == ['g', 'g'] {

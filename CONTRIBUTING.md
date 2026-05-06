@@ -45,11 +45,14 @@ sudo apt install libasound2-dev
 2. Declare it in `src/animation/mod.rs` with `mod <name>;`
 3. Add an entry to the `THEMES` array in `mod.rs`: `Theme { fill: <name>::fill_<name>, color: Color::Rgb(...) }`
 
-## Guidelines
+## Checklist before submitting a PR
 
-- Keep PRs focused — one feature or fix per PR
-- Run `cargo clippy` and `cargo fmt` before submitting
-- Test in a true-colour terminal (Ghostty, Kitty, WezTerm)
+- [ ] **Help screen updated** — if you added, removed, or rebound a key, update `draw_help` (and `draw_endless_help` if applicable) in `src/ui.rs`
+- [ ] **Docs updated** — update `CHANGELOG.md` with a summary of the change; update `README.md` and `ROADMAP.md` if the feature or its scope changed
+- [ ] **Version bumped** — increment the version in `Cargo.toml` following semver (patch for fixes, minor for new features, major for breaking changes)
+- [ ] **PR focused** — one feature or fix per PR
+- [ ] `cargo clippy` and `cargo fmt` pass
+- [ ] Tested in a true-colour terminal (Ghostty, Kitty, WezTerm)
 
 ## Planned features
 

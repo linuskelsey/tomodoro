@@ -18,8 +18,5 @@
 
 ### Patch
 - **XDG_CONFIG_HOME support** — respect `$XDG_CONFIG_HOME` for config path instead of hardcoding `~/.config/tomodoro`; affects users with non-standard XDG setups
-<<<<<<< HEAD
-=======
 - **Session completion on skip** — log a focus session when `n` is pressed if ≥50% of its duration has elapsed; currently skips never log regardless of time spent
 - **Day separators in history** — light divider line between days in `tomodoro history` output
->>>>>>> 0927b0a (roadmap refresh)
