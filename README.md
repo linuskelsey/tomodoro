@@ -29,13 +29,13 @@ On launch, if you have profiles defined in config a picker lets you choose one �
 |-----|--------|
 | `Space` | Start / pause |
 | `n` | Skip to next phase |
-| `r` | Restart current phase |
+| `gg` | Restart current phase |
 | `e` | Edit timer durations |
 | `t` | Set task label |
 | `[` / `]` | Volume down / up |
 | `m` | Mute / unmute |
-| `←` / `→` | Cycle animation themes |
-| `↑` / `↓` | Cycle render modes (Half → Quarter → Braille) |
+| `←, h` / `→, l` | Cycle animation themes |
+| `↑, k` / `↓, j` | Cycle render modes (Half → Quarter → Braille) |
 | `?` | Toggle help overlay |
 | `Esc` | Cancel edit / quit |
 | `q` / `Ctrl+C` | Quit |
@@ -78,8 +78,8 @@ tomodoro completions fish > ~/.config/fish/completions/tomodoro.fish
 | `Space` | Pause / resume animation |
 | `[` / `]` | Volume down / up |
 | `m` | Mute / unmute |
-| `←` / `→` | Cycle animation themes |
-| `↑` / `↓` | Cycle render modes |
+| `←, h` / `→, l` | Cycle animation themes |
+| `↑, k` / `↓, j` | Cycle render modes |
 | `?` | Show help overlay |
 | `q` / `Esc` / `Ctrl+C` | Quit |
 
