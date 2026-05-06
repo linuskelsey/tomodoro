@@ -182,3 +182,5 @@ rm -rf ~/.local/share/tomodoro/0.2.2
 ## Contributing
 
 Contributions welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
+
+test
