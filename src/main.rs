@@ -588,10 +588,14 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                                     (KeyCode::Char('q'), _)
                                     | (KeyCode::Char('c'), KeyModifiers::CONTROL)
                                     | (KeyCode::Esc, _) => { sync_inhibit(&mut inhibit, false); return Ok(()); }
-                                    (KeyCode::Up, _) => { if pp.selected > 0 { pp.selected -= 1; } }
-                                    (KeyCode::Down, _) => { if pp.selected < pp.entries.len() { pp.selected += 1; } }
+
+                                    (KeyCode::Tab, _)  => { pp.selected = (pp.selected +1) % (pp.entries.len() + 1); }
+
+                                    /*
                                     (KeyCode::Char('k'), _) => { if pp.selected > 0 { pp.selected -= 1; } }
                                     (KeyCode::Char('j'), _) => { if pp.selected < pp.entries.len() { pp.selected += 1; } }
+                                    */
+
                                     (KeyCode::Enter, _) => {
                                         if pp.selected < pp.entries.len() {
                                             let (name, _, tc) = &pp.entries[pp.selected];
