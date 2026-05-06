@@ -472,6 +472,7 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
     let mut beep_pending: u8 = 0;
     let has_profiles = !profile_entries.is_empty();
     let mut show_help = false;
+    let mut key_buf: Vec<char> = vec![];
     let mut profile_picker: Option<ProfilePickerState> = if !endless && !cfg.auto_start && has_profiles {
         Some(ProfilePickerState { entries: profile_entries, selected: default_sel })
     } else {
@@ -537,6 +538,7 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                     Event::Key(key) if key.kind == KeyEventKind::Press => {
                         update_notice = None;
                         config_warnings = None;
+                        if key.code != KeyCode::Char('g') { key_buf.clear(); }
                         if endless {
                             match (key.code, key.modifiers) {
                                 (KeyCode::Char('q'), _)
@@ -707,9 +709,14 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                                     last_beep_sec = None;
                                     sync_inhibit(&mut inhibit, timer.running && timer.phase == Phase::Work);
                                 }
-                                (KeyCode::Char('r'), _) => {
-                                    timer.reset();
-                                    sync_inhibit(&mut inhibit, timer.running && timer.phase == Phase::Work);
+                                (KeyCode::Char('g'), _) => {
+                                    key_buf.push('g');
+                                    if key_buf == ['g', 'g'] {
+                                        key_buf.clear();
+                                        timer.reset();
+                                        sync_inhibit(&mut inhibit, timer.running && timer.phase == Phase::Work);
+                                    }
+                                    continue;
                                 }
                                 (KeyCode::Char(']'), _) => {
                                     volume = ((volume * 10.0 + 1.0).round() / 10.0).min(1.0);
