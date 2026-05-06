@@ -18,4 +18,3 @@
 
 ### Patch
 - **XDG_CONFIG_HOME support** — respect `$XDG_CONFIG_HOME` for config path instead of hardcoding `~/.config/tomodoro`; affects users with non-standard XDG setups
-- **Neovim keybinds** — optional vi-style navigation: `h`/`l` cycle themes, `j`/`k` cycle render modes, `gg` restart phase; enable via `vim_keys = true` in config

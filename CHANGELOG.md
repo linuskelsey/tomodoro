@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.6.1] - 2026-05-06
+### Added
+- Vim keybindings optional alongside arrow key use. 
+- "gg" keybind to reset phase".
+
 ## [0.6.0] - 2026-05-05
 ### Added
 - Mute — `m` key mutes and unmutes in both regular and endless mode; restores previous volume level on unmute

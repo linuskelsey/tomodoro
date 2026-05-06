@@ -472,6 +472,7 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
     let mut beep_pending: u8 = 0;
     let has_profiles = !profile_entries.is_empty();
     let mut show_help = false;
+    let mut key_buf: Vec<char> = vec![];
     let mut profile_picker: Option<ProfilePickerState> = if !endless && !cfg.auto_start && has_profiles {
         Some(ProfilePickerState { entries: profile_entries, selected: default_sel })
     } else {
@@ -537,6 +538,7 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                     Event::Key(key) if key.kind == KeyEventKind::Press => {
                         update_notice = None;
                         config_warnings = None;
+                        if key.code != KeyCode::Char('g') { key_buf.clear(); }
                         if endless {
                             match (key.code, key.modifiers) {
                                 (KeyCode::Char('q'), _)
@@ -547,6 +549,12 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                                 (KeyCode::Left, _) => anim.prev_theme(&timer.phase),
                                 (KeyCode::Up, _) => anim.next_mode(),
                                 (KeyCode::Down, _) => anim.prev_mode(),
+
+                                (KeyCode::Char('l'), _) => anim.next_theme(&timer.phase),
+                                (KeyCode::Char('h'), _) => anim.prev_theme(&timer.phase),
+                                (KeyCode::Char('k'), _) => anim.next_mode(),
+                                (KeyCode::Char('j'), _) => anim.prev_mode(),
+
                                 (KeyCode::Char(']'), _) => {
                                     volume = ((volume * 10.0 + 1.0).round() / 10.0).min(1.0);
                                     pre_mute_volume = None;
@@ -582,8 +590,14 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                                     (KeyCode::Char('q'), _)
                                     | (KeyCode::Char('c'), KeyModifiers::CONTROL)
                                     | (KeyCode::Esc, _) => { sync_inhibit(&mut inhibit, false); return Ok(()); }
-                                    (KeyCode::Up, _) => { if pp.selected > 0 { pp.selected -= 1; } }
-                                    (KeyCode::Down, _) => { if pp.selected < pp.entries.len() { pp.selected += 1; } }
+
+                                    (KeyCode::Tab, _)  => { pp.selected = (pp.selected +1) % (pp.entries.len() + 1); }
+
+                                    /*
+                                    (KeyCode::Char('k'), _) => { if pp.selected > 0 { pp.selected -= 1; } }
+                                    (KeyCode::Char('j'), _) => { if pp.selected < pp.entries.len() { pp.selected += 1; } }
+                                    */
+
                                     (KeyCode::Enter, _) => {
                                         if pp.selected < pp.entries.len() {
                                             let (name, _, tc) = &pp.entries[pp.selected];
@@ -633,9 +647,9 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                                     es.typing_buf.clear();
                                     es.selected = (es.selected + 1) % 3;
                                 }
-                                KeyCode::Left => { es.typing_buf.clear(); es.unit = 0; }
-                                KeyCode::Right => { es.typing_buf.clear(); es.unit = 1; }
-                                KeyCode::Up => {
+                                KeyCode::Left | KeyCode::Char('h') => { es.typing_buf.clear(); es.unit = 0; }
+                                KeyCode::Right | KeyCode::Char('l') => { es.typing_buf.clear(); es.unit = 1; }
+                                KeyCode::Up | KeyCode::Char('k') => {
                                     es.typing_buf.clear();
                                     if es.unit == 0 {
                                         es.fields[es.selected].0 = (es.fields[es.selected].0 + 1).min(23);
@@ -644,7 +658,7 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                                         *m = if *m < 59 { *m + 1 } else { 0 };
                                     }
                                 }
-                                KeyCode::Down => {
+                                KeyCode::Down | KeyCode::Char('j') => {
                                     es.typing_buf.clear();
                                     if es.unit == 0 {
                                         let h = &mut es.fields[es.selected].0;
@@ -695,9 +709,14 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                                     last_beep_sec = None;
                                     sync_inhibit(&mut inhibit, timer.running && timer.phase == Phase::Work);
                                 }
-                                (KeyCode::Char('r'), _) => {
-                                    timer.reset();
-                                    sync_inhibit(&mut inhibit, timer.running && timer.phase == Phase::Work);
+                                (KeyCode::Char('g'), _) => {
+                                    key_buf.push('g');
+                                    if key_buf == ['g', 'g'] {
+                                        key_buf.clear();
+                                        timer.reset();
+                                        sync_inhibit(&mut inhibit, timer.running && timer.phase == Phase::Work);
+                                    }
+                                    continue;
                                 }
                                 (KeyCode::Char(']'), _) => {
                                     volume = ((volume * 10.0 + 1.0).round() / 10.0).min(1.0);
@@ -726,6 +745,10 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                                 (KeyCode::Left, _) => anim.prev_theme(&timer.phase),
                                 (KeyCode::Up, _) => anim.next_mode(),
                                 (KeyCode::Down, _) => anim.prev_mode(),
+                                (KeyCode::Char('l'), _) => anim.next_theme(&timer.phase),
+                                (KeyCode::Char('h'), _) => anim.prev_theme(&timer.phase),
+                                (KeyCode::Char('k'), _) => anim.next_mode(),
+                                (KeyCode::Char('j'), _) => anim.prev_mode(),
                                 _ => {}
                             }
                         }
