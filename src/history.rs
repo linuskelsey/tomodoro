@@ -79,9 +79,15 @@ pub fn print_history(full: bool) {
     let visible: Vec<&Row> = rows.iter().rev().take(limit).collect();
 
     let task_w = visible.iter().map(|r| r.task.len().max(4)).max().unwrap_or(4);
+    let sep = "─".repeat(11 + 2 + task_w + 2 + 5 + 2 + 5 + 2 + 1);
     println!("{:<11}  {:<task_w$}  Start  End    #", "Day", "Task", task_w = task_w);
-    println!("{}", "─".repeat(11 + 2 + task_w + 2 + 5 + 2 + 5 + 2 + 1));
+    println!("{}", sep);
+    let mut prev_day: Option<&str> = None;
     for r in &visible {
+        if prev_day.map_or(false, |d| d != r.day.as_str()) {
+            println!("{}", "╌".repeat(11 + 2 + task_w + 2 + 5 + 2 + 5 + 2 + 1));
+        }
+        prev_day = Some(&r.day);
         let start = sub_mins_from_time(&r.first_end, r.first_dur);
         let task  = if r.task.is_empty() { "—".to_string() } else { r.task.clone() };
         println!("{:<11}  {:<task_w$}  {}  {}  {}", fmt_date(&r.day), task, start, r.last_end, r.count, task_w = task_w);
@@ -128,8 +134,13 @@ fn load_sessions() -> Vec<Session> {
 }
 
 fn history_path() -> std::path::PathBuf {
-    let home = std::env::var("HOME").unwrap_or_else(|_| ".".into());
-    std::path::PathBuf::from(home).join(".local/share/tomodoro/history.json")
+    let base = std::env::var("XDG_DATA_HOME")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|_| {
+            let home = std::env::var("HOME").unwrap_or_else(|_| ".".into());
+            std::path::PathBuf::from(home).join(".local/share")
+        });
+    base.join("tomodoro/history.json")
 }
 
 fn timestamp_now() -> String {

@@ -386,6 +386,11 @@ fn fmt_float(v: f32) -> String {
 }
 
 fn config_path() -> std::path::PathBuf {
-    let home = std::env::var("HOME").unwrap_or_else(|_| ".".into());
-    std::path::PathBuf::from(home).join(".config/tomodoro/config.toml")
+    let base = std::env::var("XDG_CONFIG_HOME")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|_| {
+            let home = std::env::var("HOME").unwrap_or_else(|_| ".".into());
+            std::path::PathBuf::from(home).join(".config")
+        });
+    base.join("tomodoro/config.toml")
 }
