@@ -29,7 +29,7 @@ On launch, if you have profiles defined in config a picker lets you choose one �
 |-----|--------|
 | `Space` | Start / pause |
 | `n` | Skip to next phase |
-| `gg` | Restart current phase |
+| `r` / `gg` | Reset current phase |
 | `e` | Edit timer durations |
 | `t` | Set task label |
 | `[` / `]` | Volume down / up |
@@ -85,7 +85,7 @@ tomodoro completions fish > ~/.config/fish/completions/tomodoro.fish
 
 ## Config
 
-On first launch, `~/.config/tomodoro/config.toml` is created with all options commented out. Uncomment and edit to set persistent defaults:
+On first launch, `~/.config/tomodoro/config.toml` is created with all options commented out (respects `$XDG_CONFIG_HOME` if set). Uncomment and edit to set persistent defaults:
 
 ```toml
 theme = 2              # starting animation (0–7): waves, rain, leaves, stars, fire, aurora, blossom, sunset
@@ -131,7 +131,7 @@ Any field can be omitted — missing values fall back to the scalar defaults abo
 - **Config file** — `~/.config/tomodoro/config.toml` auto-created on first launch; set persistent defaults for themes, durations, volume, and more; invalid or unrecognised values are reset to defaults with an in-app warning; new keys added by updates are merged in automatically without overwriting existing settings
 - **Desktop notifications** — optional `notify-send` alerts on phase end; enable with `notifications = true` in config
 - **Task labeling** — press `t` mid-session to name the current task; shown in the header; logged with each completed session
-- **Session history** — completed focus sessions saved to `~/.local/share/tomodoro/history.json`; run `tomodoro history` to see a grouped table by day and task (start time, end time, session count) with summary stats (avg session length, avg sessions per day, best day); shows last 20 rows by default — pass `--full` for complete history
+- **Session history** — completed focus sessions saved to `~/.local/share/tomodoro/history.json` (respects `$XDG_DATA_HOME`); run `tomodoro history` to see a grouped table by day and task (start time, end time, session count) with dashed separators between days and summary stats (avg session length, avg sessions per day, best day); shows last 20 rows by default — pass `--full` for complete history; skipping a focus phase with `n` logs a session if ≥50% of the duration elapsed
 - **8 animated themes** — waves, rain, falling leaves, starfield, fireplace, aurora borealis, cherry blossom, sunset; all AI-crafted scenes with detailed foreground elements; set different themes for focus and break phases
 - **3 render modes** — half-block, quarter-block, or braille; increasing pixel density per terminal cell
 - **Coloured progress bar** — matches the current theme; uses braille dots in braille mode

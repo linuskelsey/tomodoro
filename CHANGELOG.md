@@ -1,9 +1,22 @@
 # Changelog
 
+## [0.6.2] - 2026-05-06
+### Added
+- Day separators in `tomodoro history` — dashed line between each day's sessions
+- `n` to skip a focus phase now logs a completed session if ≥50% of the duration has elapsed
+
+### Changed
+- Config path respects `$XDG_CONFIG_HOME`; falls back to `~/.config` as before
+- History path respects `$XDG_DATA_HOME`; falls back to `~/.local/share` as before
+
+---
+
 ## [0.6.1] - 2026-05-06
 ### Added
-- Vim keybindings optional alongside arrow key use. 
-- "gg" keybind to reset phase".
+- Vim-style keybindings: `h`/`l` cycle themes, `j`/`k` cycle render modes — all work alongside existing arrow keys
+- `gg` resets the current phase; `r` as a single-key alias for the same action
+
+---
 
 ## [0.6.0] - 2026-05-05
 ### Added

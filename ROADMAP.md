@@ -16,7 +16,3 @@
 - **Fortune popup** — call `fortune` at end of each focus session; overlay popup dismissible with `q`/`Esc`
 - **Daily focus goal** — set a target focus time per day in config; track progress and show in header or end-of-day summary
 
-### Patch
-- **XDG_CONFIG_HOME support** — respect `$XDG_CONFIG_HOME` for config path instead of hardcoding `~/.config/tomodoro`; affects users with non-standard XDG setups
-- **Session completion on skip** — log a focus session when `n` is pressed if ≥50% of its duration has elapsed; currently skips never log regardless of time spent
-- **Day separators in history** — light divider line between days in `tomodoro history` output
