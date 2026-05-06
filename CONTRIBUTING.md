@@ -51,7 +51,7 @@ sudo apt install libasound2-dev
 - [ ] **Docs updated** — update `CHANGELOG.md` with a summary of the change; update `README.md` and `ROADMAP.md` if the feature or its scope changed
 - [ ] **Version bumped** — increment the version in `Cargo.toml` following semver (patch for fixes, minor for new features, major for breaking changes)
 - [ ] **PR focused** — one feature or fix per PR
-- [ ] `cargo clippy` and `cargo fmt` pass
+- [ ] `cargo clippy` passes
 - [ ] Tested in a true-colour terminal (Ghostty, Kitty, WezTerm)
 
 ## Planned features
