@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.6.3] - Unreleased
+## [0.6.3] - 2026-05-07
 ### Added
 - `long_break_interval` per profile — profiles can now set their own sessions-before-long-break count; shown as `xN` in the profile picker; editable as a 4th field (Sessions/LB) in the custom timer screen
 - `p` key opens the profile picker mid-session — lets users switch profiles or adjust timers without restarting; useful when `auto_start = true`; if no profiles are defined, opens the timer edit screen directly
