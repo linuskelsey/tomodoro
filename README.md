@@ -23,7 +23,7 @@ sudo apt install libasound2-dev
 
 ## Usage
 
-On launch, if you have profiles defined in config a picker lets you choose one — or select Custom to set durations manually. Use `Tab` to move between fields, `←`/`→` to select hours or minutes, and `↑`/`↓` to change the value — or just type a number directly. Press `Enter` to start, `Esc` to quit.
+On launch, if you have profiles defined in config a picker lets you choose one — or select Custom to set durations manually. Use `Tab` / `Shift+Tab` to move between fields, `↑`/`↓` to change the value, or type a number directly. The four fields are Focus, Short Break, Long Break, and Sessions/LB (sessions before a long break). After confirming, a label prompt appears — press `Enter` again to skip it. Press `Esc` to quit.
 
 | Key | Action |
 |-----|--------|
@@ -114,6 +114,7 @@ Timer profiles are defined as TOML tables and appear in the startup picker:
 focus = 50
 short_break = 10
 long_break = 30
+long_break_interval = 6
 
 [profiles.quick]
 focus = 15
@@ -121,13 +122,13 @@ short_break = 3
 long_break = 10
 ```
 
-Any field can be omitted — missing values fall back to the scalar defaults above. Custom audio files can be placed in `~/.config/tomodoro/sounds/effects/` (created automatically on first launch).
+Any field can be omitted — missing values fall back to the scalar defaults above. `long_break_interval` can be set per profile independently of the global value. Custom audio files can be placed in `~/.config/tomodoro/sounds/effects/` (created automatically on first launch).
 
 ## Features
 
 - **Custom durations** — set focus, short break, and long break times on startup or mid-session with `e`; type values directly or use arrow keys
 - **Volume control** — adjust bell and beep volume with `[`/`]`, displayed in the header
-- **Session tracker** — dots in the top-right show progress toward a long break (every 4 sessions)
+- **Session tracker** — dots in the top-right show progress toward a long break; count follows each profile's `long_break_interval` (default 4)
 - **Config file** — `~/.config/tomodoro/config.toml` auto-created on first launch; set persistent defaults for themes, durations, volume, and more; invalid or unrecognised values are reset to defaults with an in-app warning; new keys added by updates are merged in automatically without overwriting existing settings
 - **Desktop notifications** — optional `notify-send` alerts on phase end; enable with `notifications = true` in config
 - **Task labeling** — press `t` mid-session to name the current task; shown in the header; logged with each completed session

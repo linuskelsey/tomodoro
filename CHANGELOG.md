@@ -1,6 +1,22 @@
 # Changelog
 
-## [0.6.2] - 2026-05-06
+## [0.6.3] - 2026-05-07
+### Added
+- `long_break_interval` per profile — profiles can now set their own sessions-before-long-break count; shown as `xN` in the profile picker; editable as a 4th field (Sessions/LB) in the custom timer screen
+- Label prompt after confirming a custom timer — after setting durations manually, a label prompt appears so the task name can be set immediately without pressing `t`
+- Profile validation warnings — `default_profile` pointing to a missing profile and zero-value profile fields are caught on launch and reported
+
+### Fixed
+- Config rewrite no longer duplicates the profile section — when a migration or fix triggers a config rewrite, the commented `# [profiles.*]` example is stripped before the real profile sections are appended
+- Startup profile picker now correctly reflects each profile's own `long_break_interval` in the session-dot count
+
+### Changed
+- Sunset ambient track volume reduced to ~8% of original to better balance with other themes
+- Profile picker hint simplified to `Tab navigate   Enter select   q quit`; `Shift+Tab` navigates backwards in both the profile picker and the timer edit screen
+
+---
+
+## [0.6.2] - 2026-05-07
 ### Added
 - Day separators in `tomodoro history` — dashed line between each day's sessions
 - `n` to skip a focus phase now logs a completed session if ≥50% of the duration has elapsed; logs actual elapsed time rather than the full configured duration

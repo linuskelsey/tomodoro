@@ -1,6 +1,6 @@
 [package]
 name = "tomodoro"
-version = "0.6.2"
+version = "0.6.3"
 edition = "2024"
 license = "MIT"
 description = "Terminal Pomodoro timer with animated backgrounds"
