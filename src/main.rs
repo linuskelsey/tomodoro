@@ -592,7 +592,8 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                                     | (KeyCode::Char('c'), KeyModifiers::CONTROL)
                                     | (KeyCode::Esc, _) => { sync_inhibit(&mut inhibit, false); return Ok(()); }
 
-                                    (KeyCode::Tab, _)  => { pp.selected = (pp.selected +1) % (pp.entries.len() + 1); }
+                                    (KeyCode::Tab, _)     => { pp.selected = (pp.selected + 1) % (pp.entries.len() + 1); }
+                                    (KeyCode::BackTab, _) => { pp.selected = (pp.selected + pp.entries.len()) % (pp.entries.len() + 1); }
 
                                     /*
                                     (KeyCode::Char('k'), _) => { if pp.selected > 0 { pp.selected -= 1; } }
@@ -633,40 +634,66 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                                     let new_cfg = es.to_config();
                                     timer.apply_config(new_cfg);
                                     last_beep_sec = None;
+                                    let was_startup = startup;
                                     edit_state = None;
                                     startup = false;
+                                    if was_startup {
+                                        label_state = Some(LabelState { text: String::new() });
+                                    }
                                 }
                                 KeyCode::Char(c) if c.is_ascii_digit() => {
-                                    let max = if es.unit == 0 { 23u64 } else { 59u64 };
-                                    if es.typing_buf.len() >= 2 { es.typing_buf.remove(0); }
                                     es.typing_buf.push(c);
-                                    let val = es.typing_buf.parse::<u64>().unwrap_or(0).min(max);
-                                    if es.unit == 0 { es.fields[es.selected].0 = val; }
-                                    else { es.fields[es.selected].1 = val; }
+                                    if es.selected < 3 {
+                                        if es.typing_buf.len() > 2 { es.typing_buf.remove(0); }
+                                        let max = if es.unit == 0 { 23u64 } else { 59u64 };
+                                        let val = es.typing_buf.parse::<u64>().unwrap_or(0).min(max);
+                                        if es.unit == 0 { es.fields[es.selected].0 = val; }
+                                        else { es.fields[es.selected].1 = val; }
+                                    } else {
+                                        if es.typing_buf.len() > 2 { es.typing_buf.remove(0); }
+                                        let val = es.typing_buf.parse::<u32>().unwrap_or(1).max(1).min(99);
+                                        es.long_break_interval = val;
+                                    }
                                 }
                                 KeyCode::Tab => {
                                     es.typing_buf.clear();
-                                    es.selected = (es.selected + 1) % 3;
+                                    es.selected = (es.selected + 1) % 4;
                                 }
-                                KeyCode::Left | KeyCode::Char('h') => { es.typing_buf.clear(); es.unit = 0; }
-                                KeyCode::Right | KeyCode::Char('l') => { es.typing_buf.clear(); es.unit = 1; }
+                                KeyCode::BackTab => {
+                                    es.typing_buf.clear();
+                                    es.selected = (es.selected + 3) % 4;
+                                }
+                                KeyCode::Left | KeyCode::Char('h') => {
+                                    if es.selected < 3 { es.typing_buf.clear(); es.unit = 0; }
+                                }
+                                KeyCode::Right | KeyCode::Char('l') => {
+                                    if es.selected < 3 { es.typing_buf.clear(); es.unit = 1; }
+                                }
                                 KeyCode::Up | KeyCode::Char('k') => {
                                     es.typing_buf.clear();
-                                    if es.unit == 0 {
-                                        es.fields[es.selected].0 = (es.fields[es.selected].0 + 1).min(23);
+                                    if es.selected < 3 {
+                                        if es.unit == 0 {
+                                            es.fields[es.selected].0 = (es.fields[es.selected].0 + 1).min(23);
+                                        } else {
+                                            let m = &mut es.fields[es.selected].1;
+                                            *m = if *m < 59 { *m + 1 } else { 0 };
+                                        }
                                     } else {
-                                        let m = &mut es.fields[es.selected].1;
-                                        *m = if *m < 59 { *m + 1 } else { 0 };
+                                        es.long_break_interval = (es.long_break_interval + 1).min(99);
                                     }
                                 }
                                 KeyCode::Down | KeyCode::Char('j') => {
                                     es.typing_buf.clear();
-                                    if es.unit == 0 {
-                                        let h = &mut es.fields[es.selected].0;
-                                        if *h > 0 { *h -= 1; }
+                                    if es.selected < 3 {
+                                        if es.unit == 0 {
+                                            let h = &mut es.fields[es.selected].0;
+                                            if *h > 0 { *h -= 1; }
+                                        } else {
+                                            let m = &mut es.fields[es.selected].1;
+                                            *m = if *m > 0 { *m - 1 } else { 59 };
+                                        }
                                     } else {
-                                        let m = &mut es.fields[es.selected].1;
-                                        *m = if *m > 0 { *m - 1 } else { 59 };
+                                        if es.long_break_interval > 1 { es.long_break_interval -= 1; }
                                     }
                                 }
                                 _ => {}

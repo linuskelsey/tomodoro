@@ -208,8 +208,9 @@ fn draw_progress(f: &mut Frame, timer: &Timer, anim: &Animation, bar_mode: Rende
 fn draw_edit(f: &mut Frame, es: &EditState, area: Rect, startup: bool) {
     let labels = ["Focus", "Short break", "Long break"];
     let w = 32u16;
-    // interior: 1 top_hint + (2 collapsed + 3 expanded) fields + 1 bot_hint = 7; +2 borders = 9
-    let h = 9u16;
+    // interior: 1 top_hint + (3 collapsed + 3 expanded) fields + 1 interval + 1 bot_hint = 9; +2 borders = 10 (when interval not selected)
+    // +2 when interval selected (3 rows instead of 1)
+    let h = if es.selected == 3 { 11u16 } else { 10u16 };
     let x = area.x + area.width.saturating_sub(w) / 2;
     let y = area.y + area.height.saturating_sub(h) / 2;
     let popup = Rect { x, y, width: w.min(area.width), height: h.min(area.height) };
@@ -274,6 +275,26 @@ fn draw_edit(f: &mut Frame, es: &EditState, area: Rect, startup: bool) {
                 Span::styled(format!("{:02}:{:02}", hv, mv), Style::default().fg(Color::Gray)),
             ]));
         }
+    }
+
+    if es.selected == 3 {
+        lines.push(Line::from(vec![
+            Span::raw(format!("{:21}", "")),
+            Span::styled("▲", arrow_sty),
+        ]));
+        lines.push(Line::from(vec![
+            Span::styled(format!("  {:<14} ", "Sessions/LB"), Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+            Span::styled(format!("{:>5}", es.long_break_interval), Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
+        ]));
+        lines.push(Line::from(vec![
+            Span::raw(format!("{:21}", "")),
+            Span::styled("▼", arrow_sty),
+        ]));
+    } else {
+        lines.push(Line::from(vec![
+            Span::styled(format!("  {:<14} ", "Sessions/LB"), Style::default().fg(Color::DarkGray)),
+            Span::styled(format!("{:>5}", es.long_break_interval), Style::default().fg(Color::Gray)),
+        ]));
     }
 
     lines.push(Line::from(Span::styled(bot_hint, hint_dim)));
