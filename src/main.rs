@@ -708,7 +708,7 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                                     if timer.phase == Phase::Work
                                         && timer.elapsed().as_secs() * 2 >= timer.config.work_secs
                                     {
-                                        history::log_session(timer.config.work_secs / 60, task_label.as_deref());
+                                        history::log_session(timer.elapsed().as_secs() / 60, task_label.as_deref());
                                     }
                                     if timer.advance() { ding_pending += 1; }
                                     last_beep_sec = None;

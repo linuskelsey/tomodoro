@@ -113,8 +113,8 @@ fn fmt_date(date: &str) -> String {
 fn sub_mins_from_time(time: &str, mins: u64) -> String {
     let h: u64 = time.get(..2).and_then(|s| s.parse().ok()).unwrap_or(0);
     let m: u64 = time.get(3..5).and_then(|s| s.parse().ok()).unwrap_or(0);
-    let total = (h * 60 + m).saturating_sub(mins);
-    format!("{:02}:{:02}", (total / 60) % 24, total % 60)
+    let start = (h * 60 + m + 24 * 60).saturating_sub(mins) % (24 * 60);
+    format!("{:02}:{:02}", start / 60, start % 60)
 }
 
 fn fmt_duration(mins: u64) -> String {
