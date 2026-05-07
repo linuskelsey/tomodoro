@@ -475,7 +475,7 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
     let mut show_help = false;
     let mut key_buf: Vec<char> = vec![];
     let mut profile_picker: Option<ProfilePickerState> = if !endless && !cfg.auto_start && has_profiles {
-        Some(ProfilePickerState { entries: profile_entries, selected: default_sel })
+        Some(ProfilePickerState { entries: profile_entries.clone(), selected: default_sel, is_startup: true })
     } else {
         None
     };
@@ -586,19 +586,23 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                             let mut close_picker = false;
                             let mut apply_config: Option<(TimerConfig, String)> = None;
                             let mut show_custom = false;
+                            let mut picker_is_startup = false;
                             if let Some(ref mut pp) = profile_picker {
+                                picker_is_startup = pp.is_startup;
                                 match (key.code, key.modifiers) {
                                     (KeyCode::Char('q'), _)
-                                    | (KeyCode::Char('c'), KeyModifiers::CONTROL)
-                                    | (KeyCode::Esc, _) => { sync_inhibit(&mut inhibit, false); return Ok(()); }
+                                    | (KeyCode::Char('c'), KeyModifiers::CONTROL) => { sync_inhibit(&mut inhibit, false); return Ok(()); }
+                                    (KeyCode::Esc, _) => {
+                                        if pp.is_startup {
+                                            sync_inhibit(&mut inhibit, false);
+                                            return Ok(());
+                                        } else {
+                                            close_picker = true;
+                                        }
+                                    }
 
                                     (KeyCode::Tab, _)     => { pp.selected = (pp.selected + 1) % (pp.entries.len() + 1); }
                                     (KeyCode::BackTab, _) => { pp.selected = (pp.selected + pp.entries.len()) % (pp.entries.len() + 1); }
-
-                                    /*
-                                    (KeyCode::Char('k'), _) => { if pp.selected > 0 { pp.selected -= 1; } }
-                                    (KeyCode::Char('j'), _) => { if pp.selected < pp.entries.len() { pp.selected += 1; } }
-                                    */
 
                                     (KeyCode::Enter, _) => {
                                         if pp.selected < pp.entries.len() {
@@ -620,7 +624,8 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                                 startup = false;
                             }
                             if show_custom {
-                                edit_state = Some(EditState::from_config(&base_timer_cfg));
+                                let cfg = if picker_is_startup { &base_timer_cfg } else { &timer.config };
+                                edit_state = Some(EditState::from_config(cfg));
                             }
                         } else if let Some(ref mut es) = edit_state {
                             match key.code {
@@ -634,12 +639,9 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                                     let new_cfg = es.to_config();
                                     timer.apply_config(new_cfg);
                                     last_beep_sec = None;
-                                    let was_startup = startup;
                                     edit_state = None;
                                     startup = false;
-                                    if was_startup {
-                                        label_state = Some(LabelState { text: String::new() });
-                                    }
+                                    label_state = Some(LabelState { text: task_label.clone().unwrap_or_default() });
                                 }
                                 KeyCode::Char(c) if c.is_ascii_digit() => {
                                     es.typing_buf.push(c);
@@ -722,8 +724,12 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                                 (KeyCode::Esc, _) => return Ok(()),
                                 (KeyCode::Char('?'), _) => show_help = !show_help,
                                 _ if show_help => show_help = false,
-                                (KeyCode::Char('e'), _) => {
-                                    edit_state = Some(EditState::from_config(&timer.config));
+                                (KeyCode::Char('p'), _) => {
+                                    if has_profiles {
+                                        profile_picker = Some(ProfilePickerState { entries: profile_entries.clone(), selected: 0, is_startup: false });
+                                    } else {
+                                        edit_state = Some(EditState::from_config(&timer.config));
+                                    }
                                 }
                                 (KeyCode::Char('t'), _) => {
                                     label_state = Some(LabelState { text: task_label.clone().unwrap_or_default() });

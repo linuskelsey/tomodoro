@@ -16,6 +16,7 @@ pub struct LabelState {
 pub struct ProfilePickerState {
     pub entries: Vec<(String, String, TimerConfig)>, // (name, "Xm / Xm / Xm", resolved config)
     pub selected: usize, // 0..entries.len() = named profiles; entries.len() = Custom
+    pub is_startup: bool,
 }
 
 pub struct EditState {
@@ -338,7 +339,7 @@ fn draw_help(f: &mut Frame, area: Rect) {
         ("space",    "pause / resume"),
         ("n",        "next phase"),
         ("r / gg",   "reset timer"),
-        ("e",        "edit timers"),
+        ("p",        "switch profile"),
         ("t",        "set task label"),
         ("[  ]",     "volume down / up"),
         ("m",        "mute / unmute"),
@@ -506,7 +507,12 @@ fn draw_profile_picker(f: &mut Frame, pp: &ProfilePickerState, area: Rect) {
         Style::default().fg(Color::Gray)
     };
     lines.push(Line::from(Span::styled(format!(" {}Custom…", cursor), custom_sty)));
-    lines.push(Line::from(Span::styled("  Tab navigate   Enter select   q quit", hint_dim)));
+    let hint = if pp.is_startup {
+        "  Tab navigate   Enter select   q quit"
+    } else {
+        "  Tab navigate   Enter select   Esc cancel"
+    };
+    lines.push(Line::from(Span::styled(hint, hint_dim)));
 
     f.render_widget(Clear, popup);
     f.render_widget(
