@@ -23,6 +23,7 @@ pub struct EditState {
     pub selected: usize,
     pub unit: usize,  // 0=hours, 1=minutes
     pub typing_buf: String,
+    pub long_break_interval: u32,
 }
 
 impl EditState {
@@ -33,6 +34,7 @@ impl EditState {
             selected: 0,
             unit: 1,
             typing_buf: String::new(),
+            long_break_interval: cfg.long_break_interval,
         }
     }
 
@@ -42,7 +44,7 @@ impl EditState {
             work_secs: to_secs(self.fields[0]),
             short_break_secs: to_secs(self.fields[1]),
             long_break_secs: to_secs(self.fields[2]),
-            ..TimerConfig::default()
+            long_break_interval: self.long_break_interval,
         }
     }
 }
@@ -483,7 +485,7 @@ fn draw_profile_picker(f: &mut Frame, pp: &ProfilePickerState, area: Rect) {
         Style::default().fg(Color::Gray)
     };
     lines.push(Line::from(Span::styled(format!(" {}Custom…", cursor), custom_sty)));
-    lines.push(Line::from(Span::styled("  ↑↓ navigate   Enter select   q quit", hint_dim)));
+    lines.push(Line::from(Span::styled("  Tab navigate   Enter select   q quit", hint_dim)));
 
     f.render_widget(Clear, popup);
     f.render_widget(
