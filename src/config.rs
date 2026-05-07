@@ -5,6 +5,7 @@ pub struct ProfileConfig {
     pub focus: Option<u64>,
     pub short_break: Option<u64>,
     pub long_break: Option<u64>,
+    pub long_break_interval: Option<u32>,
 }
 
 #[derive(Deserialize)]
@@ -127,11 +128,12 @@ const DEFAULT_CONFIG: &str = r#"# tomodoro configuration
 # beep_sound = "~/.config/tomodoro/sounds/effects/beep.mp3"
 
 # Timer profiles — named presets selectable at startup
-# Each accepts: focus, short_break, long_break (minutes); omitted values fall back to the defaults above
+# Each accepts: focus, short_break, long_break, long_break_interval (minutes/count); omitted values fall back to the defaults above
 # [profiles.deep]
 # focus = 50
 # short_break = 10
 # long_break = 30
+# long_break_interval = 6
 "#;
 
 impl AppConfig {
@@ -190,6 +192,31 @@ impl AppConfig {
             dirty_keys.insert(key);
         }
 
+        if let Some(ref dp) = config.default_profile {
+            if !config.profiles.contains_key(dp.as_str()) {
+                warnings.push(format!("default_profile = '{}' does not match any defined profile", dp));
+            }
+        }
+
+        for (name, profile) in config.profiles.iter_mut() {
+            if profile.focus == Some(0) {
+                warnings.push(format!("profiles.{}: focus = 0 is invalid, using default", name));
+                profile.focus = None;
+            }
+            if profile.short_break == Some(0) {
+                warnings.push(format!("profiles.{}: short_break = 0 is invalid, using default", name));
+                profile.short_break = None;
+            }
+            if profile.long_break == Some(0) {
+                warnings.push(format!("profiles.{}: long_break = 0 is invalid, using default", name));
+                profile.long_break = None;
+            }
+            if profile.long_break_interval == Some(0) {
+                warnings.push(format!("profiles.{}: long_break_interval = 0 is invalid, using default", name));
+                profile.long_break_interval = None;
+            }
+        }
+
         let explicit: std::collections::HashSet<String> = table
             .keys()
             .filter(|k| KNOWN_KEYS.contains(&k.as_str()) && !dirty_keys.contains(*k))
@@ -209,6 +236,7 @@ impl AppConfig {
             let profile_text = extract_profile_sections(&text);
             let mut new_content = build_config_content(&config, &explicit);
             if !profile_text.trim().is_empty() {
+                new_content = strip_commented_profile_example(new_content);
                 new_content.push('\n');
                 new_content.push_str(&profile_text);
             }
@@ -355,6 +383,27 @@ fn build_config_content(config: &AppConfig, explicit: &std::collections::HashSet
     }
 
     out
+}
+
+fn strip_commented_profile_example(content: String) -> String {
+    let mut result: Vec<&str> = Vec::new();
+    let mut in_example = false;
+    for line in content.lines() {
+        let t = line.trim();
+        if t.starts_with("# [profiles.") {
+            in_example = true;
+            continue;
+        }
+        if in_example {
+            if t.starts_with('#') { continue; }
+            in_example = false;
+        }
+        result.push(line);
+    }
+    while result.last().map_or(false, |l: &&str| l.trim().is_empty()) {
+        result.pop();
+    }
+    result.join("\n") + "\n"
 }
 
 fn extract_profile_sections(text: &str) -> String {

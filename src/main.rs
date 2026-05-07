@@ -422,17 +422,18 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
 
     let mut profile_entries: Vec<(String, String, TimerConfig)> = cfg.profiles.iter()
         .map(|(name, p)| {
-            let f = p.focus.unwrap_or(cfg.focus);
-            let s = p.short_break.unwrap_or(cfg.short_break);
-            let l = p.long_break.unwrap_or(cfg.long_break);
+            let f = p.focus.unwrap_or(cfg.focus).max(1);
+            let s = p.short_break.unwrap_or(cfg.short_break).max(1);
+            let l = p.long_break.unwrap_or(cfg.long_break).max(1);
+            let i = p.long_break_interval.unwrap_or(cfg.long_break_interval).max(1);
             (
                 name.clone(),
-                format!("{}m / {}m / {}m", f, s, l),
+                format!("{}m / {}m / {}m  x{}", f, s, l, i),
                 TimerConfig {
                     work_secs: f * 60,
                     short_break_secs: s * 60,
                     long_break_secs: l * 60,
-                    long_break_interval: cfg.long_break_interval,
+                    long_break_interval: i,
                 },
             )
         })
@@ -446,7 +447,7 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
     let timer_cfg = cfg.default_profile.as_deref()
         .and_then(|dp| profile_entries.iter().find(|(n, _, _)| n == dp))
         .map(|(_, _, tc)| tc.clone())
-        .unwrap_or(base_timer_cfg);
+        .unwrap_or_else(|| base_timer_cfg.clone());
     let render_mode = match cfg.render_mode.as_str() {
         "quarter" => RenderMode::Quarter,
         "braille" => RenderMode::Braille,
@@ -618,7 +619,7 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                                 startup = false;
                             }
                             if show_custom {
-                                edit_state = Some(EditState::from_config(&timer.config));
+                                edit_state = Some(EditState::from_config(&base_timer_cfg));
                             }
                         } else if let Some(ref mut es) = edit_state {
                             match key.code {

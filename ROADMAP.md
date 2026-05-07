@@ -15,4 +15,8 @@
 - **Detail scaling** — different levels of scene detail for different terminal pane sizes
 - **Fortune popup** — call `fortune` at end of each focus session; overlay popup dismissible with `q`/`Esc`
 - **Daily focus goal** — set a target focus time per day in config; track progress and show in header or end-of-day summary
+- **`long_break_interval` per profile** — allow profiles to override the global `long_break_interval`; useful for deep work presets with longer session runs before a long break
+
+### Patch
+- **Config rewrite duplicates profile section** — when a migration rewrite is triggered and the user has uncommented `[profiles.deep]` in place, the rebuilt config retains the commented `# [profiles.deep]` example from the template AND appends the real section at the bottom; profile works but config looks wrong; fix by stripping the commented profile example from template output when real profiles exist
 
