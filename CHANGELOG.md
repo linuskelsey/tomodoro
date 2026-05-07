@@ -3,11 +3,14 @@
 ## [0.6.2] - 2026-05-06
 ### Added
 - Day separators in `tomodoro history` — dashed line between each day's sessions
-- `n` to skip a focus phase now logs a completed session if ≥50% of the duration has elapsed
+- `n` to skip a focus phase now logs a completed session if ≥50% of the duration has elapsed; logs actual elapsed time rather than the full configured duration
 
 ### Changed
 - Config path respects `$XDG_CONFIG_HOME`; falls back to `~/.config` as before
 - History path respects `$XDG_DATA_HOME`; falls back to `~/.local/share` as before
+
+### Fixed
+- History start time now wraps correctly when a session began before midnight
 
 ---
 
