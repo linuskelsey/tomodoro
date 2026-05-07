@@ -30,7 +30,7 @@ On launch, if you have profiles defined in config a picker lets you choose one â
 | `Space` | Start / pause |
 | `n` | Skip to next phase |
 | `r` / `gg` | Reset current phase |
-| `e` | Edit timer durations |
+| `p` | Switch profile / edit timers |
 | `t` | Set task label |
 | `[` / `]` | Volume down / up |
 | `m` | Mute / unmute |

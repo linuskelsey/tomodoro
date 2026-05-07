@@ -1,8 +1,9 @@
 # Changelog
 
-## [0.6.3] - 2026-05-07
+## [0.6.3] - Unreleased
 ### Added
 - `long_break_interval` per profile — profiles can now set their own sessions-before-long-break count; shown as `xN` in the profile picker; editable as a 4th field (Sessions/LB) in the custom timer screen
+- `p` key opens the profile picker mid-session — lets users switch profiles or adjust timers without restarting; useful when `auto_start = true`; if no profiles are defined, opens the timer edit screen directly
 - Label prompt after confirming a custom timer — after setting durations manually, a label prompt appears so the task name can be set immediately without pressing `t`
 - Profile validation warnings — `default_profile` pointing to a missing profile and zero-value profile fields are caught on launch and reported
 
