@@ -7,6 +7,7 @@
 - **Internet radio channels** — built-in curated list of stream URLs (NTS, Soma FM, etc.); selectable from config or a TUI picker; streams play during focus sessions via an HTTP audio backend; user can add custom stream URLs in config
 - **Custom animations** — import user-made pixel art as animation frames; define frame sequences in config pointing at files (e.g. PNG strips or Aseprite exports); support common terminal pixel art editors (timg-compatible, pixterm); frames rendered via the existing sixel/kitty path
 - **Spotify integration** — connect Spotify account via OAuth; auto play/pause on session start/end; user selects a playlist to shuffle during focus sessions
+- **Status output** — `tomodoro status --json` prints `{"phase": "focus", "remaining_secs": 847, "paused": false}` for Waybar, i3blocks, tmux status-bar, and similar integrations; poll-friendly, exits immediately
 
 ## < 1.0
 
