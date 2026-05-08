@@ -17,5 +17,5 @@
 - **Daily focus goal** — set a target focus time per day in config; track progress and show in header or end-of-day summary
 
 ### Patch
-- **Session duration in history** — `tomodoro history` currently shows start time, end time, and session count but not the focus duration; add a duration column (or incorporate it into the existing view) so users can see how long each session was
+- **Session duration in history** — `tomodoro history` currently shows start time, end time, and session count but not the focus duration; add a duration column (or incorporate it into the existing view) so users can see how long focus was
 
