@@ -18,4 +18,4 @@
 
 ### Patch
 - **Session duration in history** — `tomodoro history` currently shows start time, end time, and session count but not the focus duration; add a duration column (or incorporate it into the existing view) so users can see how long focus was
-
+- **Colour configuration** - allow `config.toml` to control colour of text in top-bar for focus and breaks. Allow importing from .css and .toml files to read theme-set colours.
