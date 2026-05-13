@@ -22,7 +22,7 @@ use ratatui::{backend::CrosstermBackend, Terminal};
 use animation::{Animation, RenderMode};
 use config::AppConfig;
 use timer::{Phase, Timer, TimerConfig};
-use ui::{EditState, LabelState, ProfilePickerState};
+use ui::{EditState, LabelState, PhaseColors, ProfilePickerState};
 
 const TICK_MS: u64 = 100;
 const SOUND_FOCUS_END: &[u8] = include_bytes!("../sounds/effects/bell.oga");
@@ -463,6 +463,17 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
         Some("half")    => Some(RenderMode::Half),
         _               => None,
     };
+    let to_color = |opt: &Option<String>, default| {
+        opt.as_deref()
+            .and_then(config::parse_color)
+            .map(|(r, g, b)| ratatui::style::Color::Rgb(r, g, b))
+            .unwrap_or(default)
+    };
+    let phase_colors = PhaseColors {
+        focus:       to_color(&cfg.focus_color,       ratatui::style::Color::Red),
+        short_break: to_color(&cfg.short_break_color, ratatui::style::Color::Green),
+        long_break:  to_color(&cfg.long_break_color,  ratatui::style::Color::Cyan),
+    };
     let mut timer = Timer::new(timer_cfg.clone());
     let mut anim = Animation::new_with(focus_theme, break_theme, render_mode);
     let mut volume: f32 = cfg.volume.clamp(0.0, 1.0);
@@ -484,6 +495,8 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
     } else {
         Some(EditState::from_config(&timer_cfg))
     };
+    let defer_profile_switch = cfg.defer_profile_switch;
+    let mut pending_config: Option<(TimerConfig, String)> = None;
     let mut label_state: Option<LabelState> = None;
     let mut task_label: Option<String> = None;
     let mut startup = !endless && !cfg.auto_start;
@@ -506,7 +519,8 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                 (!right && lit, right && lit)
             });
             let muted = pre_mute_volume.is_some();
-            ui::draw(f, &timer, &anim, show_help, edit_state.as_ref(), profile_picker.as_ref(), label_state.as_ref(), startup, volume, endless, fl, task_label.as_deref(), update_notice.as_deref(), bar_mode_override, config_warnings.as_deref(), muted);
+            let pending_label = pending_config.as_ref().map(|(_, name)| name.as_str());
+            ui::draw(f, &timer, &anim, show_help, edit_state.as_ref(), profile_picker.as_ref(), label_state.as_ref(), startup, volume, endless, fl, task_label.as_deref(), pending_label, update_notice.as_deref(), bar_mode_override, config_warnings.as_deref(), muted, &phase_colors);
         })?;
 
         if !endless {
@@ -618,10 +632,15 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                             }
                             if close_picker { profile_picker = None; }
                             if let Some((tc, name)) = apply_config {
-                                timer.apply_config(tc);
-                                task_label = Some(name);
-                                last_beep_sec = None;
-                                startup = false;
+                                if defer_profile_switch && matches!(timer.phase, Phase::ShortBreak | Phase::LongBreak) {
+                                    pending_config = Some((tc, name));
+                                } else {
+                                    pending_config = None;
+                                    timer.apply_config(tc);
+                                    task_label = Some(name);
+                                    last_beep_sec = None;
+                                    startup = false;
+                                }
                             }
                             if show_custom {
                                 let cfg = if picker_is_startup { &base_timer_cfg } else { &timer.config };
@@ -717,11 +736,19 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                             match (key.code, key.modifiers) {
                                 (KeyCode::Char('q'), _)
                                 | (KeyCode::Char('c'), KeyModifiers::CONTROL) => {
+                                    if timer.phase == Phase::Work && timer.elapsed().as_secs() * 2 >= timer.config.work_secs {
+                                        history::log_session(timer.elapsed().as_secs() / 60, task_label.as_deref());
+                                    }
                                     sync_inhibit(&mut inhibit, false);
                                     return Ok(());
                                 }
                                 (KeyCode::Esc, _) if show_help => show_help = false,
-                                (KeyCode::Esc, _) => return Ok(()),
+                                (KeyCode::Esc, _) => {
+                                    if timer.phase == Phase::Work && timer.elapsed().as_secs() * 2 >= timer.config.work_secs {
+                                        history::log_session(timer.elapsed().as_secs() / 60, task_label.as_deref());
+                                    }
+                                    return Ok(());
+                                }
                                 (KeyCode::Char('?'), _) => show_help = !show_help,
                                 _ if show_help => show_help = false,
                                 (KeyCode::Char('p'), _) => {
@@ -838,6 +865,12 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                     if timer.phase == Phase::Work {
                         let dur_mins = timer.config.work_secs / 60;
                         history::log_session(dur_mins, task_label.as_deref());
+                    }
+                    if matches!(timer.phase, Phase::ShortBreak | Phase::LongBreak) {
+                        if let Some((tc, name)) = pending_config.take() {
+                            task_label = Some(name);
+                            timer.apply_config(tc);
+                        }
                     }
                     timer.advance();
                     last_beep_sec = None;

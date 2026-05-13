@@ -103,8 +103,16 @@ notifications = false  # notify-send on phase end
 update_check = true    # notify if a newer version is available on startup
 bar_style = "half"     # lock progress bar style: half | quarter | braille (default: follows render mode)
 default_profile = "deep"  # load this profile silently at startup (skips picker)
+defer_profile_switch = true  # apply mid-break profile switches after the break ends, not immediately
 bell_sound = "~/.config/tomodoro/sounds/effects/bell.mp3"  # custom bell (ogg/mp3/wav/flac)
 beep_sound = "~/.config/tomodoro/sounds/effects/beep.mp3"  # custom countdown beep
+focus_color = "#e67e80"       # colour for phase label, timer, and dots during focus
+short_break_color = "#a7c080" # colour during short breaks
+long_break_color = "#7fbbb3"  # colour during long breaks
+color_scheme = "~/.config/omarchy/current_theme.toml"  # import colours from a TOML or waybar CSS file
+focus_color_key = "color1"       # key in the scheme file for focus colour
+short_break_color_key = "color2" # key in the scheme file for short break colour
+long_break_color_key = "color4"  # key in the scheme file for long break colour
 ```
 
 Timer profiles are defined as TOML tables and appear in the startup picker:
@@ -126,13 +134,13 @@ Any field can be omitted — missing values fall back to the scalar defaults abo
 
 ## Features
 
-- **Custom durations** — set focus, short break, and long break times on startup or mid-session with `e`; type values directly or use arrow keys
+- **Custom durations** — set focus, short break, and long break times on startup or mid-session with `p`/Custom; type values directly or use arrow keys
 - **Volume control** — adjust bell and beep volume with `[`/`]`, displayed in the header
 - **Session tracker** — dots in the top-right show progress toward a long break; count follows each profile's `long_break_interval` (default 4)
 - **Config file** — `~/.config/tomodoro/config.toml` auto-created on first launch; set persistent defaults for themes, durations, volume, and more; invalid or unrecognised values are reset to defaults with an in-app warning; new keys added by updates are merged in automatically without overwriting existing settings
 - **Desktop notifications** — optional `notify-send` alerts on phase end; enable with `notifications = true` in config
 - **Task labeling** — press `t` mid-session to name the current task; shown in the header; logged with each completed session
-- **Session history** — completed focus sessions saved to `~/.local/share/tomodoro/history.json` (respects `$XDG_DATA_HOME`); run `tomodoro history` to see a grouped table by day and task (start time, end time, session count) with dashed separators between days and summary stats (avg session length, avg sessions per day, best day); shows last 20 rows by default — pass `--full` for complete history; skipping a focus phase with `n` logs a session if ≥50% of the duration elapsed
+- **Session history** — completed focus sessions saved to `~/.local/share/tomodoro/history.json` (respects `$XDG_DATA_HOME`); run `tomodoro history` to see a grouped table by day and task (start time, end time, focus duration, session count) with dashed separators between days and summary stats (avg session length, avg sessions per day, best day); shows last 20 rows by default — pass `--full` for complete history; skipping a focus phase with `n` logs a session if ≥50% of the duration elapsed; quitting mid-focus with `q`/`Esc`/`Ctrl+C` also logs if ≥50% elapsed
 - **8 animated themes** — waves, rain, falling leaves, starfield, fireplace, aurora borealis, cherry blossom, sunset; all AI-crafted scenes with detailed foreground elements; set different themes for focus and break phases
 - **3 render modes** — half-block, quarter-block, or braille; increasing pixel density per terminal cell
 - **Coloured progress bar** — matches the current theme; uses braille dots in braille mode
@@ -141,7 +149,8 @@ Any field can be omitted — missing values fall back to the scalar defaults abo
 - **Phase indicators** — `F` (focus), `B` (short break), `LB` (long break)
 - **Endless mode** — `tomodoro -E` runs animations full-screen with no timer, sounds, or UI chrome; `[`/`]` control ambient volume, `m` mutes/unmutes, `?` shows available controls
 - **Update check** — checks crates.io on startup and notifies if a newer version is available; dismissible with any key; disable with `update_check = false`
-- **Timer profiles** — define named presets in config as `[profiles.name]`; startup shows a picker when profiles exist; selecting a profile auto-labels the session; `default_profile` loads one silently (pairs with `auto_start = true`)
+- **Timer profiles** — define named presets in config as `[profiles.name]`; startup shows a picker when profiles exist; selecting a profile auto-labels the session; `default_profile` loads one silently (pairs with `auto_start = true`); press `p` mid-session to switch profiles; switching during a break defers the change until the break ends (shown as `→ name` in the header) — disable with `defer_profile_switch = false`
+- **Phase colours** — configure the colour of the phase label (`F`/`B`/`LB`), timer, and session dots per phase via `focus_color`, `short_break_color`, `long_break_color` in config; accepts `#rrggbb`, `#rgb`, `rgb(r,g,b)`, or named colours; import from a TOML or waybar CSS theme file with `color_scheme` and `*_color_key` keys
 - **Custom effect sounds** — override the bell and countdown beep with any ogg, mp3, wav, or flac file via `bell_sound` and `beep_sound` in config; place files in `~/.config/tomodoro/sounds/effects/`
 - **Bar style** — lock the progress bar to `half`, `quarter`, or `braille` via `bar_style` in config, independent of the animation render mode
 - **Shell completions** — `tomodoro completions <bash|zsh|fish>` prints a completion script; pipe into your shell's completion setup for tab completion

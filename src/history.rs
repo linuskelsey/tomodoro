@@ -60,6 +60,7 @@ pub fn print_history(full: bool) {
         first_end: String,  // timestamp of first session (recorded at end)
         first_dur: u64,     // duration of first session (to compute start)
         last_end: String,   // timestamp of last session (recorded at end)
+        total_dur: u64,
         count: usize,
     }
     let mut rows: Vec<Row> = Vec::new();
@@ -69,9 +70,10 @@ pub fn print_history(full: bool) {
         let task = s.label.clone().unwrap_or_default();
         if let Some(r) = rows.iter_mut().find(|r| r.day == day && r.task == task) {
             r.last_end = time;
+            r.total_dur += s.duration_mins;
             r.count += 1;
         } else {
-            rows.push(Row { day, task, first_end: time.clone(), first_dur: s.duration_mins, last_end: time, count: 1 });
+            rows.push(Row { day, task, first_end: time.clone(), first_dur: s.duration_mins, last_end: time, total_dur: s.duration_mins, count: 1 });
         }
     }
 
@@ -79,18 +81,19 @@ pub fn print_history(full: bool) {
     let visible: Vec<&Row> = rows.iter().rev().take(limit).collect();
 
     let task_w = visible.iter().map(|r| r.task.len().max(4)).max().unwrap_or(4);
-    let sep = "─".repeat(11 + 2 + task_w + 2 + 5 + 2 + 5 + 2 + 1);
-    println!("{:<11}  {:<task_w$}  Start  End    #", "Day", "Task", task_w = task_w);
+    let dur_w = 6usize;
+    let sep = "─".repeat(11 + 2 + task_w + 2 + 5 + 2 + 5 + 2 + dur_w + 2 + 1);
+    println!("{:<11}  {:<task_w$}  Start  End    {:<dur_w$}  #", "Day", "Task", "Focus", task_w = task_w, dur_w = dur_w);
     println!("{}", sep);
     let mut prev_day: Option<&str> = None;
     for r in &visible {
         if prev_day.map_or(false, |d| d != r.day.as_str()) {
-            println!("{}", "╌".repeat(11 + 2 + task_w + 2 + 5 + 2 + 5 + 2 + 1));
+            println!("{}", "╌".repeat(11 + 2 + task_w + 2 + 5 + 2 + 5 + 2 + dur_w + 2 + 1));
         }
         prev_day = Some(&r.day);
         let start = sub_mins_from_time(&r.first_end, r.first_dur);
         let task  = if r.task.is_empty() { "—".to_string() } else { r.task.clone() };
-        println!("{:<11}  {:<task_w$}  {}  {}  {}", fmt_date(&r.day), task, start, r.last_end, r.count, task_w = task_w);
+        println!("{:<11}  {:<task_w$}  {}  {}  {:<dur_w$}  {}", fmt_date(&r.day), task, start, r.last_end, fmt_duration(r.total_dur), r.count, task_w = task_w, dur_w = dur_w);
     }
     if !full && rows.len() > 20 {
         println!("\n  {} older rows hidden — run `tomodoro history --full` to see all", rows.len() - 20);

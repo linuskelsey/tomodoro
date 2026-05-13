@@ -16,8 +16,3 @@
 - **Fortune popup** — call `fortune` at end of each focus session; overlay popup dismissible with `q`/`Esc`
 - **Daily focus goal** — set a target focus time per day in config; track progress and show in header or end-of-day summary
 
-### Patch
-- **Session duration in history** — `tomodoro history` currently shows start time, end time, and session count but not the focus duration; add a duration column (or incorporate it into the existing view) so users can see how long focus was
-- **Colour configuration** - allow `config.toml` to control colour of text in top-bar for focus and breaks. Allow importing from .css and .toml files to read theme-set colours.
-- **Profile switching patch** - allow switches of timer profiles mid-break to come into effect after the end of current break (don't reset straight into a focus, and don't reset length of break). Make configurable by switching this on/off, default to on.
-- **Incomplete session logging patch** - on `q` press incomplete log is not recorded.
