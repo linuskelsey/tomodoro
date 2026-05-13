@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.6.4] - Unreleased
+### Added
+- `Dur` column in `tomodoro history` — shows total focused time per day/task group
+
+---
+
 ## [0.6.3] - 2026-05-07
 ### Added
 - `long_break_interval` per profile — profiles can now set their own sessions-before-long-break count; shown as `xN` in the profile picker; editable as a 4th field (Sessions/LB) in the custom timer screen
