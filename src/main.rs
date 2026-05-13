@@ -717,11 +717,19 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                             match (key.code, key.modifiers) {
                                 (KeyCode::Char('q'), _)
                                 | (KeyCode::Char('c'), KeyModifiers::CONTROL) => {
+                                    if timer.phase == Phase::Work && timer.elapsed().as_secs() * 2 >= timer.config.work_secs {
+                                        history::log_session(timer.elapsed().as_secs() / 60, task_label.as_deref());
+                                    }
                                     sync_inhibit(&mut inhibit, false);
                                     return Ok(());
                                 }
                                 (KeyCode::Esc, _) if show_help => show_help = false,
-                                (KeyCode::Esc, _) => return Ok(()),
+                                (KeyCode::Esc, _) => {
+                                    if timer.phase == Phase::Work && timer.elapsed().as_secs() * 2 >= timer.config.work_secs {
+                                        history::log_session(timer.elapsed().as_secs() / 60, task_label.as_deref());
+                                    }
+                                    return Ok(());
+                                }
                                 (KeyCode::Char('?'), _) => show_help = !show_help,
                                 _ if show_help => show_help = false,
                                 (KeyCode::Char('p'), _) => {

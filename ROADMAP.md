@@ -19,4 +19,3 @@
 ### Patch
 - **Colour configuration** - allow `config.toml` to control colour of text in top-bar for focus and breaks. Allow importing from .css and .toml files to read theme-set colours.
 - **Profile switching patch** - allow switches of timer profiles mid-break to come into effect after the end of current break (don't reset straight into a focus, and don't reset length of break). Make configurable by switching this on/off, default to on.
-- **Incomplete session logging patch** - on `q` press incomplete log is not recorded.

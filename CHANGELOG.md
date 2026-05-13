@@ -2,7 +2,10 @@
 
 ## [0.6.4] - Unreleased
 ### Added
-- `Dur` column in `tomodoro history` — shows total focused time per day/task group
+- `Focus` column in `tomodoro history` — shows total focused time per day/task group
+
+### Fixed
+- Quitting mid-focus with `q`, `Esc`, or `Ctrl+C` now logs the session if ≥50% of the configured duration has elapsed; uses actual elapsed time, consistent with the `n` skip behaviour
 
 ---
 
