@@ -29,6 +29,7 @@ pub struct AppConfig {
     pub profiles: std::collections::HashMap<String, ProfileConfig>,
     pub bell_sound: Option<String>,
     pub beep_sound: Option<String>,
+    pub defer_profile_switch: bool,
     #[serde(skip)]
     pub warnings: Vec<String>,
 }
@@ -54,6 +55,7 @@ impl Default for AppConfig {
             profiles: std::collections::HashMap::new(),
             bell_sound: None,
             beep_sound: None,
+            defer_profile_switch: true,
             warnings: Vec::new(),
         }
     }
@@ -78,6 +80,7 @@ const KNOWN_KEYS: &[&str] = &[
     "profiles",
     "bell_sound",
     "beep_sound",
+    "defer_profile_switch",
 ];
 
 const DEFAULT_CONFIG: &str = r#"# tomodoro configuration
@@ -106,6 +109,9 @@ const DEFAULT_CONFIG: &str = r#"# tomodoro configuration
 
 # Skip the startup screen and begin immediately
 # auto_start = false
+
+# When switching profiles during a break, defer the change until the break ends
+# defer_profile_switch = true
 
 # Countdown beep seconds at end of each break
 # countdown_beeps = 5
@@ -380,6 +386,9 @@ fn build_config_content(config: &AppConfig, explicit: &std::collections::HashSet
     }
     if let Some(ref s) = config.beep_sound {
         set(&mut out, "# beep_sound = \"~/.config/tomodoro/sounds/effects/beep.mp3\"", &format!("beep_sound = \"{}\"", s));
+    }
+    if config.defer_profile_switch != d.defer_profile_switch || explicit.contains("defer_profile_switch") {
+        set(&mut out, "# defer_profile_switch = true", &format!("defer_profile_switch = {}", config.defer_profile_switch));
     }
 
     out

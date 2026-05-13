@@ -3,9 +3,11 @@
 ## [0.6.4] - Unreleased
 ### Added
 - `Focus` column in `tomodoro history` — shows total focused time per day/task group
+- `defer_profile_switch` config option (default `true`) — when switching profiles mid-break, the change takes effect after the break ends rather than resetting immediately; set to `false` to restore the old instant-apply behaviour
 
 ### Fixed
 - Quitting mid-focus with `q`, `Esc`, or `Ctrl+C` now logs the session if ≥50% of the configured duration has elapsed; uses actual elapsed time, consistent with the `n` skip behaviour
+- Switching profiles mid-break no longer resets the break timer; the new profile loads when the break finishes naturally
 
 ---
 

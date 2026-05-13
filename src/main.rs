@@ -484,6 +484,8 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
     } else {
         Some(EditState::from_config(&timer_cfg))
     };
+    let defer_profile_switch = cfg.defer_profile_switch;
+    let mut pending_config: Option<(TimerConfig, String)> = None;
     let mut label_state: Option<LabelState> = None;
     let mut task_label: Option<String> = None;
     let mut startup = !endless && !cfg.auto_start;
@@ -618,10 +620,15 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                             }
                             if close_picker { profile_picker = None; }
                             if let Some((tc, name)) = apply_config {
-                                timer.apply_config(tc);
-                                task_label = Some(name);
-                                last_beep_sec = None;
-                                startup = false;
+                                if defer_profile_switch && matches!(timer.phase, Phase::ShortBreak | Phase::LongBreak) {
+                                    pending_config = Some((tc, name));
+                                } else {
+                                    pending_config = None;
+                                    timer.apply_config(tc);
+                                    task_label = Some(name);
+                                    last_beep_sec = None;
+                                    startup = false;
+                                }
                             }
                             if show_custom {
                                 let cfg = if picker_is_startup { &base_timer_cfg } else { &timer.config };
@@ -846,6 +853,12 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                     if timer.phase == Phase::Work {
                         let dur_mins = timer.config.work_secs / 60;
                         history::log_session(dur_mins, task_label.as_deref());
+                    }
+                    if matches!(timer.phase, Phase::ShortBreak | Phase::LongBreak) {
+                        if let Some((tc, name)) = pending_config.take() {
+                            task_label = Some(name);
+                            timer.apply_config(tc);
+                        }
                     }
                     timer.advance();
                     last_beep_sec = None;
