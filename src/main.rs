@@ -508,7 +508,8 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                 (!right && lit, right && lit)
             });
             let muted = pre_mute_volume.is_some();
-            ui::draw(f, &timer, &anim, show_help, edit_state.as_ref(), profile_picker.as_ref(), label_state.as_ref(), startup, volume, endless, fl, task_label.as_deref(), update_notice.as_deref(), bar_mode_override, config_warnings.as_deref(), muted);
+            let pending_label = pending_config.as_ref().map(|(_, name)| name.as_str());
+            ui::draw(f, &timer, &anim, show_help, edit_state.as_ref(), profile_picker.as_ref(), label_state.as_ref(), startup, volume, endless, fl, task_label.as_deref(), pending_label, update_notice.as_deref(), bar_mode_override, config_warnings.as_deref(), muted);
         })?;
 
         if !endless {

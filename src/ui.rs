@@ -50,7 +50,7 @@ impl EditState {
     }
 }
 
-pub fn draw(f: &mut Frame, timer: &Timer, anim: &Animation, show_help: bool, edit_state: Option<&EditState>, profile_picker: Option<&ProfilePickerState>, label_state: Option<&LabelState>, startup: bool, volume: f32, endless: bool, vol_flash: (bool, bool), task_label: Option<&str>, update_notice: Option<&str>, bar_mode_override: Option<RenderMode>, config_warnings: Option<&[String]>, muted: bool) {
+pub fn draw(f: &mut Frame, timer: &Timer, anim: &Animation, show_help: bool, edit_state: Option<&EditState>, profile_picker: Option<&ProfilePickerState>, label_state: Option<&LabelState>, startup: bool, volume: f32, endless: bool, vol_flash: (bool, bool), task_label: Option<&str>, pending_label: Option<&str>, update_notice: Option<&str>, bar_mode_override: Option<RenderMode>, config_warnings: Option<&[String]>, muted: bool) {
     let area = f.area();
     if endless {
         draw_animation(f, timer, anim, area);
@@ -69,7 +69,7 @@ pub fn draw(f: &mut Frame, timer: &Timer, anim: &Animation, show_help: bool, edi
         .split(area);
 
     let bar_mode = bar_mode_override.unwrap_or(anim.render_mode);
-    draw_header(f, timer, rows[0], volume, vol_flash, task_label);
+    draw_header(f, timer, rows[0], volume, vol_flash, task_label, pending_label);
     draw_animation(f, timer, anim, rows[1]);
     draw_progress(f, timer, anim, bar_mode, rows[2]);
 
@@ -92,7 +92,7 @@ pub fn draw(f: &mut Frame, timer: &Timer, anim: &Animation, show_help: bool, edi
     }
 }
 
-fn draw_header(f: &mut Frame, timer: &Timer, area: Rect, volume: f32, vol_flash: (bool, bool), task_label: Option<&str>) {
+fn draw_header(f: &mut Frame, timer: &Timer, area: Rect, volume: f32, vol_flash: (bool, bool), task_label: Option<&str>, pending_label: Option<&str>) {
     let color = phase_color(&timer.phase);
     let phase_str = match timer.phase {
         Phase::Work => "F",
@@ -123,14 +123,23 @@ fn draw_header(f: &mut Frame, timer: &Timer, area: Rect, volume: f32, vol_flash:
             .alignment(Alignment::Center),
         cols[1],
     );
-    let right = if let Some(label) = task_label {
-        Line::from(vec![
+    let pending_dim = Color::Rgb(100, 100, 70);
+    let right = match (task_label, pending_label) {
+        (Some(label), Some(pending)) => Line::from(vec![
+            Span::styled(label.to_string(), Style::default().fg(Color::Rgb(160, 160, 160))),
+            Span::styled(format!("  → {}  ", pending), Style::default().fg(pending_dim)),
+            Span::styled(dots, Style::default().fg(color)),
+        ]),
+        (None, Some(pending)) => Line::from(vec![
+            Span::styled(format!("→ {}  ", pending), Style::default().fg(pending_dim)),
+            Span::styled(dots, Style::default().fg(color)),
+        ]),
+        (Some(label), None) => Line::from(vec![
             Span::styled(label.to_string(), Style::default().fg(Color::Rgb(160, 160, 160))),
             Span::styled("  ", Style::default()),
             Span::styled(dots, Style::default().fg(color)),
-        ])
-    } else {
-        Line::from(Span::styled(dots, Style::default().fg(color)))
+        ]),
+        (None, None) => Line::from(Span::styled(dots, Style::default().fg(color))),
     };
     f.render_widget(Paragraph::new(right).alignment(Alignment::Right), cols[2]);
 }
