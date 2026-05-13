@@ -4,6 +4,7 @@
 ### Added
 - `Focus` column in `tomodoro history` — shows total focused time per day/task group
 - `defer_profile_switch` config option (default `true`) — when switching profiles mid-break, the change takes effect after the break ends rather than resetting immediately; set to `false` to restore the old instant-apply behaviour
+- Phase colour configuration — `focus_color`, `short_break_color`, `long_break_color` config keys set the colour of the phase label, timer, and session dots; accepts `#rrggbb`, `#rgb`, `rgb(r,g,b)`, or named colours (`red`, `cyan`, etc.); `color_scheme` loads colours from a TOML or waybar CSS file; `focus_color_key`, `short_break_color_key`, `long_break_color_key` map each phase to a key in that file
 
 ### Fixed
 - Quitting mid-focus with `q`, `Esc`, or `Ctrl+C` now logs the session if ≥50% of the configured duration has elapsed; uses actual elapsed time, consistent with the `n` skip behaviour

@@ -30,6 +30,13 @@ pub struct AppConfig {
     pub bell_sound: Option<String>,
     pub beep_sound: Option<String>,
     pub defer_profile_switch: bool,
+    pub focus_color: Option<String>,
+    pub short_break_color: Option<String>,
+    pub long_break_color: Option<String>,
+    pub color_scheme: Option<String>,
+    pub focus_color_key: Option<String>,
+    pub short_break_color_key: Option<String>,
+    pub long_break_color_key: Option<String>,
     #[serde(skip)]
     pub warnings: Vec<String>,
 }
@@ -56,6 +63,13 @@ impl Default for AppConfig {
             bell_sound: None,
             beep_sound: None,
             defer_profile_switch: true,
+            focus_color: None,
+            short_break_color: None,
+            long_break_color: None,
+            color_scheme: None,
+            focus_color_key: None,
+            short_break_color_key: None,
+            long_break_color_key: None,
             warnings: Vec::new(),
         }
     }
@@ -81,9 +95,16 @@ const KNOWN_KEYS: &[&str] = &[
     "bell_sound",
     "beep_sound",
     "defer_profile_switch",
+    "focus_color",
+    "short_break_color",
+    "long_break_color",
+    "color_scheme",
+    "focus_color_key",
+    "short_break_color_key",
+    "long_break_color_key",
 ];
 
-const DEFAULT_CONFIG: &str = r#"# tomodoro configuration
+const DEFAULT_CONFIG: &str = r##"# tomodoro configuration
 # All values shown are defaults. Uncomment and edit to customise.
 
 # Starting animation theme (0–7): waves, rain, leaves, stars, fire, aurora, blossom, sunset
@@ -95,6 +116,17 @@ const DEFAULT_CONFIG: &str = r#"# tomodoro configuration
 
 # Render mode: "half", "quarter", or "braille"
 # render_mode = "half"
+
+# Phase colours — hex (#rrggbb or #rgb), rgb(r,g,b), or a named colour (red, green, cyan, etc.)
+# focus_color = "#e67e80"
+# short_break_color = "#a7c080"
+# long_break_color = "#7fbbb3"
+
+# Import colours from a theme file (.toml or waybar .css)
+# color_scheme = "~/.config/omarchy/current_theme.toml"
+# focus_color_key = "color1"
+# short_break_color_key = "color2"
+# long_break_color_key = "color4"
 
 # Default durations in minutes
 # focus = 25
@@ -140,7 +172,7 @@ const DEFAULT_CONFIG: &str = r#"# tomodoro configuration
 # short_break = 10
 # long_break = 30
 # long_break_interval = 6
-"#;
+"##;
 
 impl AppConfig {
     pub fn load() -> Self {
@@ -196,6 +228,26 @@ impl AppConfig {
         for (key, msg) in config.validate_and_fix() {
             warnings.push(msg);
             dirty_keys.insert(key);
+        }
+
+        // Fill missing phase colours from color_scheme file
+        if let Some(ref scheme_path) = config.color_scheme.clone() {
+            let scheme = load_scheme(scheme_path);
+            if config.focus_color.is_none() {
+                if let Some(ref key) = config.focus_color_key.clone() {
+                    config.focus_color = scheme.get(key.as_str()).cloned();
+                }
+            }
+            if config.short_break_color.is_none() {
+                if let Some(ref key) = config.short_break_color_key.clone() {
+                    config.short_break_color = scheme.get(key.as_str()).cloned();
+                }
+            }
+            if config.long_break_color.is_none() {
+                if let Some(ref key) = config.long_break_color_key.clone() {
+                    config.long_break_color = scheme.get(key.as_str()).cloned();
+                }
+            }
         }
 
         if let Some(ref dp) = config.default_profile {
@@ -316,10 +368,116 @@ impl AppConfig {
             self.long_break_interval = 4;
         }
 
+        if let Some(ref s) = self.focus_color.clone() {
+            if parse_color(s).is_none() {
+                fixed.push(("focus_color".into(), format!("focus_color = '{}' is not a recognised colour", s)));
+                self.focus_color = None;
+            }
+        }
+        if let Some(ref s) = self.short_break_color.clone() {
+            if parse_color(s).is_none() {
+                fixed.push(("short_break_color".into(), format!("short_break_color = '{}' is not a recognised colour", s)));
+                self.short_break_color = None;
+            }
+        }
+        if let Some(ref s) = self.long_break_color.clone() {
+            if parse_color(s).is_none() {
+                fixed.push(("long_break_color".into(), format!("long_break_color = '{}' is not a recognised colour", s)));
+                self.long_break_color = None;
+            }
+        }
+
         fixed
     }
 }
 
+/// Parse a colour string into (r, g, b). Accepts #rrggbb, #rgb, rgb(r,g,b), or named colours.
+pub fn parse_color(s: &str) -> Option<(u8, u8, u8)> {
+    let s = s.trim().trim_matches('"');
+    if let Some(hex) = s.strip_prefix('#') {
+        if hex.len() == 6 {
+            return Some((
+                u8::from_str_radix(&hex[0..2], 16).ok()?,
+                u8::from_str_radix(&hex[2..4], 16).ok()?,
+                u8::from_str_radix(&hex[4..6], 16).ok()?,
+            ));
+        }
+        if hex.len() == 3 {
+            return Some((
+                u8::from_str_radix(&hex[0..1].repeat(2), 16).ok()?,
+                u8::from_str_radix(&hex[1..2].repeat(2), 16).ok()?,
+                u8::from_str_radix(&hex[2..3].repeat(2), 16).ok()?,
+            ));
+        }
+    }
+    let s_lower = s.to_lowercase();
+    if let Some(inner) = s_lower.strip_prefix("rgb(").and_then(|t| t.strip_suffix(')')) {
+        let parts: Vec<&str> = inner.split(',').collect();
+        if parts.len() == 3 {
+            return Some((
+                parts[0].trim().parse::<u8>().ok()?,
+                parts[1].trim().parse::<u8>().ok()?,
+                parts[2].trim().parse::<u8>().ok()?,
+            ));
+        }
+    }
+    match s_lower.as_str() {
+        "red"            => Some((255,   0,   0)),
+        "green"          => Some((  0, 255,   0)),
+        "blue"           => Some((  0,   0, 255)),
+        "yellow"         => Some((255, 255,   0)),
+        "cyan"           => Some((  0, 255, 255)),
+        "magenta"        => Some((255,   0, 255)),
+        "white"          => Some((255, 255, 255)),
+        "black"          => Some((  0,   0,   0)),
+        "orange"         => Some((255, 165,   0)),
+        "purple"         => Some((128,   0, 128)),
+        "pink"           => Some((255, 192, 203)),
+        "teal"           => Some((  0, 128, 128)),
+        "coral"          => Some((255, 127,  80)),
+        "indigo"         => Some(( 75,   0, 130)),
+        "violet"         => Some((238, 130, 238)),
+        "gold"           => Some((255, 215,   0)),
+        "grey" | "gray"  => Some((128, 128, 128)),
+        _                => None,
+    }
+}
+
+/// Load a flat name→value colour map from a TOML or waybar CSS file.
+fn load_scheme(path: &str) -> std::collections::HashMap<String, String> {
+    let expanded = if path.starts_with("~/") {
+        let home = std::env::var("HOME").unwrap_or_else(|_| ".".into());
+        format!("{}/{}", home, &path[2..])
+    } else {
+        path.to_string()
+    };
+    let Ok(text) = std::fs::read_to_string(&expanded) else { return Default::default() };
+
+    if path.ends_with(".css") {
+        // Parse waybar-style `@define-color name value;` declarations
+        let mut map = std::collections::HashMap::new();
+        for line in text.lines() {
+            let line = line.trim();
+            if let Some(rest) = line.strip_prefix("@define-color") {
+                let rest = rest.trim().trim_end_matches(';');
+                let mut parts = rest.splitn(2, |c: char| c.is_whitespace());
+                if let (Some(name), Some(value)) = (parts.next(), parts.next()) {
+                    map.insert(name.trim().to_string(), value.trim().to_string());
+                }
+            }
+        }
+        map
+    } else {
+        // TOML: flat key = "value" string pairs
+        match text.parse::<toml::Value>() {
+            Ok(toml::Value::Table(table)) => table
+                .into_iter()
+                .filter_map(|(k, v)| v.as_str().map(|s| (k, s.to_string())))
+                .collect(),
+            _ => Default::default(),
+        }
+    }
+}
 
 fn build_config_content(config: &AppConfig, explicit: &std::collections::HashSet<String>) -> String {
     let d = AppConfig::default();
@@ -389,6 +547,27 @@ fn build_config_content(config: &AppConfig, explicit: &std::collections::HashSet
     }
     if config.defer_profile_switch != d.defer_profile_switch || explicit.contains("defer_profile_switch") {
         set(&mut out, "# defer_profile_switch = true", &format!("defer_profile_switch = {}", config.defer_profile_switch));
+    }
+    if let Some(ref s) = config.focus_color {
+        set(&mut out, "# focus_color = \"#e67e80\"", &format!("focus_color = \"{}\"", s));
+    }
+    if let Some(ref s) = config.short_break_color {
+        set(&mut out, "# short_break_color = \"#a7c080\"", &format!("short_break_color = \"{}\"", s));
+    }
+    if let Some(ref s) = config.long_break_color {
+        set(&mut out, "# long_break_color = \"#7fbbb3\"", &format!("long_break_color = \"{}\"", s));
+    }
+    if let Some(ref s) = config.color_scheme {
+        set(&mut out, "# color_scheme = \"~/.config/omarchy/current_theme.toml\"", &format!("color_scheme = \"{}\"", s));
+    }
+    if let Some(ref s) = config.focus_color_key {
+        set(&mut out, "# focus_color_key = \"color1\"", &format!("focus_color_key = \"{}\"", s));
+    }
+    if let Some(ref s) = config.short_break_color_key {
+        set(&mut out, "# short_break_color_key = \"color2\"", &format!("short_break_color_key = \"{}\"", s));
+    }
+    if let Some(ref s) = config.long_break_color_key {
+        set(&mut out, "# long_break_color_key = \"color4\"", &format!("long_break_color_key = \"{}\"", s));
     }
 
     out

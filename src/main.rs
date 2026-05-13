@@ -22,7 +22,7 @@ use ratatui::{backend::CrosstermBackend, Terminal};
 use animation::{Animation, RenderMode};
 use config::AppConfig;
 use timer::{Phase, Timer, TimerConfig};
-use ui::{EditState, LabelState, ProfilePickerState};
+use ui::{EditState, LabelState, PhaseColors, ProfilePickerState};
 
 const TICK_MS: u64 = 100;
 const SOUND_FOCUS_END: &[u8] = include_bytes!("../sounds/effects/bell.oga");
@@ -463,6 +463,17 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
         Some("half")    => Some(RenderMode::Half),
         _               => None,
     };
+    let to_color = |opt: &Option<String>, default| {
+        opt.as_deref()
+            .and_then(config::parse_color)
+            .map(|(r, g, b)| ratatui::style::Color::Rgb(r, g, b))
+            .unwrap_or(default)
+    };
+    let phase_colors = PhaseColors {
+        focus:       to_color(&cfg.focus_color,       ratatui::style::Color::Red),
+        short_break: to_color(&cfg.short_break_color, ratatui::style::Color::Green),
+        long_break:  to_color(&cfg.long_break_color,  ratatui::style::Color::Cyan),
+    };
     let mut timer = Timer::new(timer_cfg.clone());
     let mut anim = Animation::new_with(focus_theme, break_theme, render_mode);
     let mut volume: f32 = cfg.volume.clamp(0.0, 1.0);
@@ -509,7 +520,7 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
             });
             let muted = pre_mute_volume.is_some();
             let pending_label = pending_config.as_ref().map(|(_, name)| name.as_str());
-            ui::draw(f, &timer, &anim, show_help, edit_state.as_ref(), profile_picker.as_ref(), label_state.as_ref(), startup, volume, endless, fl, task_label.as_deref(), pending_label, update_notice.as_deref(), bar_mode_override, config_warnings.as_deref(), muted);
+            ui::draw(f, &timer, &anim, show_help, edit_state.as_ref(), profile_picker.as_ref(), label_state.as_ref(), startup, volume, endless, fl, task_label.as_deref(), pending_label, update_notice.as_deref(), bar_mode_override, config_warnings.as_deref(), muted, &phase_colors);
         })?;
 
         if !endless {

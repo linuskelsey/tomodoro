@@ -19,6 +19,22 @@ pub struct ProfilePickerState {
     pub is_startup: bool,
 }
 
+pub struct PhaseColors {
+    pub focus: Color,
+    pub short_break: Color,
+    pub long_break: Color,
+}
+
+impl PhaseColors {
+    pub fn for_phase(&self, phase: &Phase) -> Color {
+        match phase {
+            Phase::Work => self.focus,
+            Phase::ShortBreak => self.short_break,
+            Phase::LongBreak => self.long_break,
+        }
+    }
+}
+
 pub struct EditState {
     pub fields: [(u64, u64); 3],  // (hours, minutes) per field
     pub selected: usize,
@@ -50,7 +66,7 @@ impl EditState {
     }
 }
 
-pub fn draw(f: &mut Frame, timer: &Timer, anim: &Animation, show_help: bool, edit_state: Option<&EditState>, profile_picker: Option<&ProfilePickerState>, label_state: Option<&LabelState>, startup: bool, volume: f32, endless: bool, vol_flash: (bool, bool), task_label: Option<&str>, pending_label: Option<&str>, update_notice: Option<&str>, bar_mode_override: Option<RenderMode>, config_warnings: Option<&[String]>, muted: bool) {
+pub fn draw(f: &mut Frame, timer: &Timer, anim: &Animation, show_help: bool, edit_state: Option<&EditState>, profile_picker: Option<&ProfilePickerState>, label_state: Option<&LabelState>, startup: bool, volume: f32, endless: bool, vol_flash: (bool, bool), task_label: Option<&str>, pending_label: Option<&str>, update_notice: Option<&str>, bar_mode_override: Option<RenderMode>, config_warnings: Option<&[String]>, muted: bool, phase_colors: &PhaseColors) {
     let area = f.area();
     if endless {
         draw_animation(f, timer, anim, area);
@@ -69,7 +85,7 @@ pub fn draw(f: &mut Frame, timer: &Timer, anim: &Animation, show_help: bool, edi
         .split(area);
 
     let bar_mode = bar_mode_override.unwrap_or(anim.render_mode);
-    draw_header(f, timer, rows[0], volume, vol_flash, task_label, pending_label);
+    draw_header(f, timer, rows[0], volume, vol_flash, task_label, pending_label, phase_colors);
     draw_animation(f, timer, anim, rows[1]);
     draw_progress(f, timer, anim, bar_mode, rows[2]);
 
@@ -92,8 +108,8 @@ pub fn draw(f: &mut Frame, timer: &Timer, anim: &Animation, show_help: bool, edi
     }
 }
 
-fn draw_header(f: &mut Frame, timer: &Timer, area: Rect, volume: f32, vol_flash: (bool, bool), task_label: Option<&str>, pending_label: Option<&str>) {
-    let color = phase_color(&timer.phase);
+fn draw_header(f: &mut Frame, timer: &Timer, area: Rect, volume: f32, vol_flash: (bool, bool), task_label: Option<&str>, pending_label: Option<&str>, phase_colors: &PhaseColors) {
+    let color = phase_colors.for_phase(&timer.phase);
     let phase_str = match timer.phase {
         Phase::Work => "F",
         Phase::ShortBreak => "B",
@@ -531,10 +547,3 @@ fn draw_profile_picker(f: &mut Frame, pp: &ProfilePickerState, area: Rect) {
     );
 }
 
-fn phase_color(phase: &Phase) -> Color {
-    match phase {
-        Phase::Work => Color::Red,
-        Phase::ShortBreak => Color::Green,
-        Phase::LongBreak => Color::Cyan,
-    }
-}

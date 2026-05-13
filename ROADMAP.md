@@ -16,5 +16,3 @@
 - **Fortune popup** — call `fortune` at end of each focus session; overlay popup dismissible with `q`/`Esc`
 - **Daily focus goal** — set a target focus time per day in config; track progress and show in header or end-of-day summary
 
-### Patch
-- **Colour configuration** - allow `config.toml` to control colour of text in top-bar for focus and breaks. Allow importing from .css and .toml files to read theme-set colours.
