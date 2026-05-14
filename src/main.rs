@@ -568,7 +568,7 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
     let mut startup = !endless && !cfg.auto_start;
     let mut inhibit: Option<std::process::Child> = None;
     let mut whats_new: Option<(Vec<String>, usize)> = if !endless { check_whats_new().map(|l| (l, 0)) } else { None };
-    let mut fortune_state: Option<String> = None;
+    let mut fortune_state: Option<(String, usize)> = None;
     let mut fortune_rx: Option<mpsc::Receiver<String>> = None;
     let mut today_mins: u64 = if daily_goal_mins > 0 { history::today_total_mins() } else { 0 };
     let tick = Duration::from_millis(TICK_MS);
@@ -586,7 +586,7 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
         if fortune_state.is_none() {
             if let Some(ref rx) = fortune_rx {
                 match rx.try_recv() {
-                    Ok(text) => { fortune_state = Some(text); fortune_rx = None; }
+                    Ok(text) => { fortune_state = Some((text, 0)); fortune_rx = None; }
                     Err(mpsc::TryRecvError::Disconnected) => { fortune_rx = None; }
                     Err(mpsc::TryRecvError::Empty) => {}
                 }
@@ -599,7 +599,7 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
             });
             let muted = pre_mute_volume.is_some();
             let pending_label = pending_config.as_ref().map(|(_, name)| name.as_str());
-            ui::draw(f, &timer, &anim, show_help, edit_state.as_ref(), profile_picker.as_ref(), label_state.as_ref(), startup, volume, endless, fl, task_label.as_deref(), pending_label, update_notice.as_deref(), bar_mode_override, config_warnings.as_deref(), muted, &phase_colors, whats_new.as_ref().map(|(l, s)| (l.as_slice(), *s)), fortune_state.as_deref(), daily_goal_mins, today_mins);
+            ui::draw(f, &timer, &anim, show_help, edit_state.as_ref(), profile_picker.as_ref(), label_state.as_ref(), startup, volume, endless, fl, task_label.as_deref(), pending_label, update_notice.as_deref(), bar_mode_override, config_warnings.as_deref(), muted, &phase_colors, whats_new.as_ref().map(|(l, s)| (l.as_slice(), *s)), fortune_state.as_ref().map(|(t, s)| (t.as_str(), *s)), daily_goal_mins, today_mins);
         })?;
 
         if !endless {
@@ -814,9 +814,15 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                             }
                         } else if fortune_state.is_some() {
                             match (key.code, key.modifiers) {
-                                (KeyCode::Char('q'), _)
-                                | (KeyCode::Esc, _)
-                                | (KeyCode::Char('c'), KeyModifiers::CONTROL) => { fortune_state = None; }
+                                (KeyCode::Char('q'), _) | (KeyCode::Esc, _) | (KeyCode::Char('c'), KeyModifiers::CONTROL) => {
+                                    fortune_state = None;
+                                }
+                                (KeyCode::Down, _) | (KeyCode::Char('j'), _) => {
+                                    if let Some((_, ref mut s)) = fortune_state { *s = s.saturating_add(1); }
+                                }
+                                (KeyCode::Up, _) | (KeyCode::Char('k'), _) => {
+                                    if let Some((_, ref mut s)) = fortune_state { *s = s.saturating_sub(1); }
+                                }
                                 _ => {}
                             }
                         } else if whats_new.is_some() {

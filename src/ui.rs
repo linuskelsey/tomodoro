@@ -66,7 +66,7 @@ impl EditState {
     }
 }
 
-pub fn draw(f: &mut Frame, timer: &Timer, anim: &Animation, show_help: bool, edit_state: Option<&EditState>, profile_picker: Option<&ProfilePickerState>, label_state: Option<&LabelState>, startup: bool, volume: f32, endless: bool, vol_flash: (bool, bool), task_label: Option<&str>, pending_label: Option<&str>, update_notice: Option<&str>, bar_mode_override: Option<RenderMode>, config_warnings: Option<&[String]>, muted: bool, phase_colors: &PhaseColors, whats_new: Option<(&[String], usize)>, fortune: Option<&str>, daily_goal_mins: u64, today_mins: u64) {
+pub fn draw(f: &mut Frame, timer: &Timer, anim: &Animation, show_help: bool, edit_state: Option<&EditState>, profile_picker: Option<&ProfilePickerState>, label_state: Option<&LabelState>, startup: bool, volume: f32, endless: bool, vol_flash: (bool, bool), task_label: Option<&str>, pending_label: Option<&str>, update_notice: Option<&str>, bar_mode_override: Option<RenderMode>, config_warnings: Option<&[String]>, muted: bool, phase_colors: &PhaseColors, whats_new: Option<(&[String], usize)>, fortune: Option<(&str, usize)>, daily_goal_mins: u64, today_mins: u64) {
     let area = f.area();
     if endless {
         draw_animation(f, timer, anim, area);
@@ -100,8 +100,8 @@ pub fn draw(f: &mut Frame, timer: &Timer, anim: &Animation, show_help: bool, edi
     if let Some(ls) = label_state {
         draw_label_input(f, ls, area);
     }
-    if let Some(fortune_text) = fortune {
-        draw_fortune(f, area, fortune_text);
+    if let Some((fortune_text, fortune_scroll)) = fortune {
+        draw_fortune(f, area, fortune_text, fortune_scroll);
     }
     if let Some(v) = update_notice {
         draw_update_notice(f, area, v);
@@ -565,34 +565,43 @@ fn draw_profile_picker(f: &mut Frame, pp: &ProfilePickerState, area: Rect) {
     );
 }
 
-fn draw_fortune(f: &mut Frame, area: Rect, text: &str) {
-    let max_w = 62usize.min(area.width.saturating_sub(4) as usize);
-    let wrapped = wrap_text(text, max_w);
-    let inner_w = wrapped.iter().map(|l| l.len()).max().unwrap_or(0);
-    let w = (inner_w as u16 + 4).min(area.width);
-    let h = (wrapped.len() as u16 + 4).min(area.height);
+fn draw_fortune(f: &mut Frame, area: Rect, text: &str, scroll: usize) {
+    let w = area.width.saturating_sub(8).max(20);
+    let content_w = w.saturating_sub(4) as usize; // border(2) + padding(2)
+    let dim = Style::default().fg(Color::Rgb(60, 60, 60));
+
+    let rendered: Vec<Line> = wrap_text(text, content_w)
+        .into_iter()
+        .map(|l| Line::from(Span::styled(format!("  {}  ", l), Style::default().fg(Color::White))))
+        .collect();
+
+    let max_h = (area.height / 3).max(6).min(area.height);
+    let h = (rendered.len() as u16 + 2).min(max_h);
+    let visible_rows = h.saturating_sub(2) as usize;
     let x = area.x + area.width.saturating_sub(w) / 2;
     let y = area.y + area.height.saturating_sub(h) / 2;
     let popup = Rect { x, y, width: w, height: h };
 
-    let dim = Style::default().fg(Color::Rgb(60, 60, 60));
-    let mut lines: Vec<Line> = vec![Line::from("")];
-    for line in &wrapped {
-        lines.push(Line::from(Span::styled(format!("  {}  ", line), Style::default().fg(Color::White))));
-    }
-    lines.push(Line::from(""));
+    let total = rendered.len();
+    let max_scroll = total.saturating_sub(visible_rows);
+    let scroll = scroll.min(max_scroll);
+    let display: Vec<Line> = rendered.into_iter().skip(scroll).take(visible_rows).collect();
+
+    let scroll_hint = if total > visible_rows {
+        format!(" ↑↓ scroll ({}/{})  q/Esc dismiss ", scroll + 1, max_scroll + 1)
+    } else {
+        " q/Esc dismiss ".to_string()
+    };
 
     f.render_widget(Clear, popup);
     f.render_widget(
-        Paragraph::new(lines)
+        Paragraph::new(display)
             .block(
                 Block::default()
                     .borders(Borders::ALL)
                     .border_style(Style::default().fg(Color::Rgb(80, 80, 80)))
                     .title(" fortune ")
-                    .title_bottom(
-                        Line::from(Span::styled(" q / Esc to dismiss ", dim)).right_aligned(),
-                    ),
+                    .title_bottom(Line::from(Span::styled(scroll_hint, dim)).right_aligned()),
             ),
         popup,
     );
