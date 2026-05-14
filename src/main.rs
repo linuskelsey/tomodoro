@@ -232,6 +232,65 @@ fn is_newer(latest: &str, current: &str) -> bool {
     }
 }
 
+fn version_seen_path() -> std::path::PathBuf {
+    let base = std::env::var("XDG_DATA_HOME")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|_| {
+            let home = std::env::var("HOME").unwrap_or_else(|_| ".".into());
+            std::path::PathBuf::from(home).join(".local/share")
+        });
+    base.join("tomodoro/version")
+}
+
+fn check_whats_new() -> Option<Vec<String>> {
+    const SUMMARY: &str = include_str!("../SUMMARY.md");
+    let current = env!("CARGO_PKG_VERSION");
+    let path = version_seen_path();
+
+    let last_seen = std::fs::read_to_string(&path)
+        .ok()
+        .map(|s| s.trim().to_string());
+
+    if let Some(dir) = path.parent() {
+        let _ = std::fs::create_dir_all(dir);
+    }
+    let _ = std::fs::write(&path, current);
+
+    let is_upgrade = match last_seen {
+        None => false, // fresh install
+        Some(ref v) if v == current => false,
+        Some(_) => true,
+    };
+    if !is_upgrade { return None; }
+
+    let lines: Vec<String> = SUMMARY.lines()
+        .filter(|l| !l.trim().is_empty())
+        .map(|l| l.to_string())
+        .collect();
+    if lines.is_empty() { None } else { Some(lines) }
+}
+
+fn fetch_fortune() -> mpsc::Receiver<String> {
+    let (tx, rx) = mpsc::channel();
+    std::thread::spawn(move || {
+        for _ in 0..20 {
+            match std::process::Command::new("fortune").output() {
+                Err(_) => return, // not installed
+                Ok(out) => {
+                    if let Ok(s) = String::from_utf8(out.stdout) {
+                        let text = s.trim().to_string();
+                        if !text.is_empty() && text.chars().count() < 100 {
+                            let _ = tx.send(text);
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+    });
+    rx
+}
+
 fn start_inhibit() -> Option<std::process::Child> {
     std::process::Command::new("systemd-inhibit")
         .args(["--what=sleep:idle", "--who=tomodoro", "--why=Focus session", "--mode=block", "sleep", "infinity"])
@@ -406,6 +465,7 @@ fn main() -> io::Result<()> {
 }
 
 fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg: AppConfig, mut config_warnings: Option<Vec<String>>) -> io::Result<()> {
+    let daily_goal_mins = cfg.daily_goal_mins;
     let bell_sound = cfg.bell_sound.clone();
     let beep_sound = cfg.beep_sound.clone();
     let audio = audio_thread();
@@ -507,6 +567,10 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
     };
     let mut startup = !endless && !cfg.auto_start;
     let mut inhibit: Option<std::process::Child> = None;
+    let mut whats_new: Option<(Vec<String>, usize)> = if !endless { check_whats_new().map(|l| (l, 0)) } else { None };
+    let mut fortune_state: Option<String> = None;
+    let mut fortune_rx: Option<mpsc::Receiver<String>> = None;
+    let mut today_mins: u64 = if daily_goal_mins > 0 { history::today_total_mins() } else { 0 };
     let tick = Duration::from_millis(TICK_MS);
 
     if endless {
@@ -519,6 +583,15 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                 if let Ok(v) = rx.try_recv() { update_notice = Some(v); }
             }
         }
+        if fortune_state.is_none() {
+            if let Some(ref rx) = fortune_rx {
+                match rx.try_recv() {
+                    Ok(text) => { fortune_state = Some(text); fortune_rx = None; }
+                    Err(mpsc::TryRecvError::Disconnected) => { fortune_rx = None; }
+                    Err(mpsc::TryRecvError::Empty) => {}
+                }
+            }
+        }
         terminal.draw(|f| {
             let fl = vol_flash.map_or((false, false), |(right, t)| {
                 let lit = t.elapsed() < Duration::from_millis(500);
@@ -526,7 +599,7 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
             });
             let muted = pre_mute_volume.is_some();
             let pending_label = pending_config.as_ref().map(|(_, name)| name.as_str());
-            ui::draw(f, &timer, &anim, show_help, edit_state.as_ref(), profile_picker.as_ref(), label_state.as_ref(), startup, volume, endless, fl, task_label.as_deref(), pending_label, update_notice.as_deref(), bar_mode_override, config_warnings.as_deref(), muted, &phase_colors);
+            ui::draw(f, &timer, &anim, show_help, edit_state.as_ref(), profile_picker.as_ref(), label_state.as_ref(), startup, volume, endless, fl, task_label.as_deref(), pending_label, update_notice.as_deref(), bar_mode_override, config_warnings.as_deref(), muted, &phase_colors, whats_new.as_ref().map(|(l, s)| (l.as_slice(), *s)), fortune_state.as_deref(), daily_goal_mins, today_mins);
         })?;
 
         if !endless {
@@ -739,6 +812,26 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                                 KeyCode::Char(c) => { ls.text.push(c); continue 'main; }
                                 _ => {}
                             }
+                        } else if fortune_state.is_some() {
+                            match (key.code, key.modifiers) {
+                                (KeyCode::Char('q'), _)
+                                | (KeyCode::Esc, _)
+                                | (KeyCode::Char('c'), KeyModifiers::CONTROL) => { fortune_state = None; }
+                                _ => {}
+                            }
+                        } else if whats_new.is_some() {
+                            match (key.code, key.modifiers) {
+                                (KeyCode::Char('q'), _) | (KeyCode::Esc, _) | (KeyCode::Char('c'), KeyModifiers::CONTROL) => {
+                                    whats_new = None;
+                                }
+                                (KeyCode::Down, _) | (KeyCode::Char('j'), _) => {
+                                    if let Some((_, ref mut s)) = whats_new { *s = s.saturating_add(1); }
+                                }
+                                (KeyCode::Up, _) | (KeyCode::Char('k'), _) => {
+                                    if let Some((_, ref mut s)) = whats_new { *s = s.saturating_sub(1); }
+                                }
+                                _ => {}
+                            }
                         } else {
                             match (key.code, key.modifiers) {
                                 (KeyCode::Char('q'), _)
@@ -777,6 +870,10 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                                         && timer.elapsed().as_secs() * 2 >= timer.config.work_secs
                                     {
                                         history::log_session(timer.elapsed().as_secs() / 60, task_label.as_deref());
+                                        if daily_goal_mins > 0 {
+                                            today_mins = history::today_total_mins();
+                                        }
+                                        fortune_rx = Some(fetch_fortune());
                                     }
                                     if timer.advance() { ding_pending += 1; }
                                     last_beep_sec = None;
@@ -872,6 +969,10 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                     if timer.phase == Phase::Work {
                         let dur_mins = timer.config.work_secs / 60;
                         history::log_session(dur_mins, task_label.as_deref());
+                        if daily_goal_mins > 0 {
+                            today_mins = history::today_total_mins();
+                        }
+                        fortune_rx = Some(fetch_fortune());
                     }
                     if matches!(timer.phase, Phase::ShortBreak | Phase::LongBreak) {
                         if let Some((tc, name)) = pending_config.take() {

@@ -66,7 +66,7 @@ impl EditState {
     }
 }
 
-pub fn draw(f: &mut Frame, timer: &Timer, anim: &Animation, show_help: bool, edit_state: Option<&EditState>, profile_picker: Option<&ProfilePickerState>, label_state: Option<&LabelState>, startup: bool, volume: f32, endless: bool, vol_flash: (bool, bool), task_label: Option<&str>, pending_label: Option<&str>, update_notice: Option<&str>, bar_mode_override: Option<RenderMode>, config_warnings: Option<&[String]>, muted: bool, phase_colors: &PhaseColors) {
+pub fn draw(f: &mut Frame, timer: &Timer, anim: &Animation, show_help: bool, edit_state: Option<&EditState>, profile_picker: Option<&ProfilePickerState>, label_state: Option<&LabelState>, startup: bool, volume: f32, endless: bool, vol_flash: (bool, bool), task_label: Option<&str>, pending_label: Option<&str>, update_notice: Option<&str>, bar_mode_override: Option<RenderMode>, config_warnings: Option<&[String]>, muted: bool, phase_colors: &PhaseColors, whats_new: Option<(&[String], usize)>, fortune: Option<&str>, daily_goal_mins: u64, today_mins: u64) {
     let area = f.area();
     if endless {
         draw_animation(f, timer, anim, area);
@@ -85,7 +85,7 @@ pub fn draw(f: &mut Frame, timer: &Timer, anim: &Animation, show_help: bool, edi
         .split(area);
 
     let bar_mode = bar_mode_override.unwrap_or(anim.render_mode);
-    draw_header(f, timer, rows[0], volume, vol_flash, task_label, pending_label, phase_colors);
+    draw_header(f, timer, rows[0], volume, vol_flash, task_label, pending_label, phase_colors, daily_goal_mins, today_mins);
     draw_animation(f, timer, anim, rows[1]);
     draw_progress(f, timer, anim, bar_mode, rows[2]);
 
@@ -100,15 +100,21 @@ pub fn draw(f: &mut Frame, timer: &Timer, anim: &Animation, show_help: bool, edi
     if let Some(ls) = label_state {
         draw_label_input(f, ls, area);
     }
+    if let Some(fortune_text) = fortune {
+        draw_fortune(f, area, fortune_text);
+    }
     if let Some(v) = update_notice {
         draw_update_notice(f, area, v);
     }
     if let Some(w) = config_warnings {
         draw_config_warnings(f, area, w);
     }
+    if let Some((lines, scroll)) = whats_new {
+        draw_whats_new(f, area, lines, scroll);
+    }
 }
 
-fn draw_header(f: &mut Frame, timer: &Timer, area: Rect, volume: f32, vol_flash: (bool, bool), task_label: Option<&str>, pending_label: Option<&str>, phase_colors: &PhaseColors) {
+fn draw_header(f: &mut Frame, timer: &Timer, area: Rect, volume: f32, vol_flash: (bool, bool), task_label: Option<&str>, pending_label: Option<&str>, phase_colors: &PhaseColors, daily_goal_mins: u64, today_mins: u64) {
     let color = phase_colors.for_phase(&timer.phase);
     let phase_str = match timer.phase {
         Phase::Work => "F",
@@ -139,25 +145,37 @@ fn draw_header(f: &mut Frame, timer: &Timer, area: Rect, volume: f32, vol_flash:
             .alignment(Alignment::Center),
         cols[1],
     );
+
     let pending_dim = Color::Rgb(100, 100, 70);
-    let right = match (task_label, pending_label) {
-        (Some(label), Some(pending)) => Line::from(vec![
-            Span::styled(label.to_string(), Style::default().fg(Color::Rgb(160, 160, 160))),
-            Span::styled(format!("  → {}  ", pending), Style::default().fg(pending_dim)),
-            Span::styled(dots, Style::default().fg(color)),
-        ]),
-        (None, Some(pending)) => Line::from(vec![
-            Span::styled(format!("→ {}  ", pending), Style::default().fg(pending_dim)),
-            Span::styled(dots, Style::default().fg(color)),
-        ]),
-        (Some(label), None) => Line::from(vec![
-            Span::styled(label.to_string(), Style::default().fg(Color::Rgb(160, 160, 160))),
-            Span::styled("  ", Style::default()),
-            Span::styled(dots, Style::default().fg(color)),
-        ]),
-        (None, None) => Line::from(Span::styled(dots, Style::default().fg(color))),
-    };
-    f.render_widget(Paragraph::new(right).alignment(Alignment::Right), cols[2]);
+    let gray_sty = Style::default().fg(Color::Rgb(160, 160, 160));
+    let mut spans: Vec<Span> = Vec::new();
+    match (task_label, pending_label) {
+        (Some(label), Some(pending)) => {
+            spans.push(Span::styled(label.to_string(), gray_sty));
+            spans.push(Span::styled(format!("  → {}  ", pending), Style::default().fg(pending_dim)));
+        }
+        (None, Some(pending)) => {
+            spans.push(Span::styled(format!("→ {}  ", pending), Style::default().fg(pending_dim)));
+        }
+        (Some(label), None) => {
+            spans.push(Span::styled(label.to_string(), gray_sty));
+            spans.push(Span::raw("  "));
+        }
+        (None, None) => {}
+    }
+    if daily_goal_mins > 0 {
+        let goal_color = if today_mins >= daily_goal_mins {
+            Color::Rgb(100, 180, 100)
+        } else {
+            Color::Rgb(70, 70, 70)
+        };
+        spans.push(Span::styled(
+            format!("{}m/{}m  ", today_mins, daily_goal_mins),
+            Style::default().fg(goal_color),
+        ));
+    }
+    spans.push(Span::styled(dots, Style::default().fg(color)));
+    f.render_widget(Paragraph::new(Line::from(spans)).alignment(Alignment::Right), cols[2]);
 }
 
 fn draw_animation(f: &mut Frame, timer: &Timer, anim: &Animation, area: Rect) {
@@ -547,3 +565,122 @@ fn draw_profile_picker(f: &mut Frame, pp: &ProfilePickerState, area: Rect) {
     );
 }
 
+fn draw_fortune(f: &mut Frame, area: Rect, text: &str) {
+    let max_w = 62usize.min(area.width.saturating_sub(4) as usize);
+    let wrapped = wrap_text(text, max_w);
+    let inner_w = wrapped.iter().map(|l| l.len()).max().unwrap_or(0);
+    let w = (inner_w as u16 + 4).min(area.width);
+    let h = (wrapped.len() as u16 + 4).min(area.height);
+    let x = area.x + area.width.saturating_sub(w) / 2;
+    let y = area.y + area.height.saturating_sub(h) / 2;
+    let popup = Rect { x, y, width: w, height: h };
+
+    let dim = Style::default().fg(Color::Rgb(60, 60, 60));
+    let mut lines: Vec<Line> = vec![Line::from("")];
+    for line in &wrapped {
+        lines.push(Line::from(Span::styled(format!("  {}  ", line), Style::default().fg(Color::White))));
+    }
+    lines.push(Line::from(""));
+
+    f.render_widget(Clear, popup);
+    f.render_widget(
+        Paragraph::new(lines)
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(Color::Rgb(80, 80, 80)))
+                    .title(" fortune ")
+                    .title_bottom(
+                        Line::from(Span::styled(" q / Esc to dismiss ", dim)).right_aligned(),
+                    ),
+            ),
+        popup,
+    );
+}
+
+fn draw_whats_new(f: &mut Frame, area: Rect, lines: &[String], scroll: usize) {
+    let w = area.width.saturating_sub(8).max(20);
+    let h = (area.height / 3).max(6).min(area.height);
+    let visible_rows = h.saturating_sub(4) as usize;
+    let x = area.x + area.width.saturating_sub(w) / 2;
+    let y = area.y + area.height.saturating_sub(h) / 2;
+    let popup = Rect { x, y, width: w, height: h };
+
+    let content_w = w.saturating_sub(6) as usize; // border(2) + padding(2) + bullet-indent(2)
+    let dim = Style::default().fg(Color::Rgb(60, 60, 60));
+
+    let mut rendered: Vec<Line> = Vec::new();
+    for line in lines {
+        let trimmed = line.trim_start();
+        if trimmed.starts_with("###") {
+            rendered.push(Line::from(Span::styled(
+                format!("  {}  ", trimmed.trim_start_matches('#').trim()),
+                Style::default().fg(Color::Yellow),
+            )));
+        } else if let Some(bullet) = trimmed.strip_prefix("- ") {
+            let wrapped = wrap_text(bullet, content_w);
+            for (i, wl) in wrapped.iter().enumerate() {
+                let prefix = if i == 0 { "  - " } else { "    " };
+                rendered.push(Line::from(Span::styled(
+                    format!("{}{}  ", prefix, wl),
+                    Style::default().fg(Color::White),
+                )));
+            }
+        } else {
+            rendered.push(Line::from(Span::styled(
+                format!("  {}  ", line),
+                Style::default().fg(Color::Rgb(150, 150, 150)),
+            )));
+        }
+    }
+
+    let total = rendered.len();
+    let max_scroll = total.saturating_sub(visible_rows);
+    let scroll = scroll.min(max_scroll);
+    let display: Vec<Line> = rendered.into_iter().skip(scroll).take(visible_rows).collect();
+
+    let scroll_hint = if total > visible_rows {
+        format!(" ↑↓ scroll ({}/{})  q/Esc dismiss ", scroll + 1, max_scroll + 1)
+    } else {
+        " q/Esc dismiss ".to_string()
+    };
+
+    f.render_widget(Clear, popup);
+    f.render_widget(
+        Paragraph::new(display)
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(Color::Rgb(80, 80, 80)))
+                    .title(format!(" what's new in v{} ", env!("CARGO_PKG_VERSION")))
+                    .title_bottom(Line::from(Span::styled(scroll_hint, dim)).right_aligned()),
+            ),
+        popup,
+    );
+}
+
+fn wrap_text(text: &str, max_width: usize) -> Vec<String> {
+    let mut result = Vec::new();
+    for paragraph in text.split('\n') {
+        if paragraph.len() <= max_width {
+            result.push(paragraph.to_string());
+        } else {
+            let mut line = String::new();
+            for word in paragraph.split_whitespace() {
+                if line.is_empty() {
+                    line.push_str(word);
+                } else if line.len() + 1 + word.len() <= max_width {
+                    line.push(' ');
+                    line.push_str(word);
+                } else {
+                    result.push(line.clone());
+                    line = word.to_string();
+                }
+            }
+            if !line.is_empty() {
+                result.push(line);
+            }
+        }
+    }
+    result
+}
