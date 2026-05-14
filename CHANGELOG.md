@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.6.5] - Unreleased
+## [0.6.5] - 2026-05-14
 ### Fixed
 - Task label input no longer lags — keypresses now trigger an immediate redraw instead of waiting up to 100ms for the next animation tick
 - `auto_start = true` with `default_profile` set now correctly labels the session with the profile name on launch
