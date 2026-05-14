@@ -11,6 +11,7 @@
 ## < 1.0
 
 ### Minor
+- **Waybar integration** — expose timer state (phase, remaining time, task label) as a waybar custom module; write JSON to a socket or file that waybar's `custom/tomodoro` module polls; output format: `{"text": "F 24:13", "tooltip": "task label", "class": "focus"}`; class switches between `focus`, `short-break`, `long-break` for CSS theming; optionally emit click commands to pause/skip via `tomodoro --pause` / `--skip` IPC flags
 - **Terminal palette colours** — query the terminal's actual color palette at startup via OSC 4 escape sequences; use the resolved RGB values of color1, color2, color4 as the default focus, short break, and long break colours; falls back to ANSI named colours on terminals that don't respond; requires no user config
 - **What's new on first launch after update** — on first run of a new version, show a dismissible popup listing the key changes for that release; last-seen version stored in `~/.local/share/tomodoro/version`; content pulled from the embedded CHANGELOG entry for the current version
 - **Custom ambient tracks** — in-app audio file selector to assign user-provided tracks to themes; files placed in `~/.config/tomodoro/sounds/tracks/`; config stores assignments per theme
