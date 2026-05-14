@@ -600,12 +600,6 @@ fn draw_fortune(f: &mut Frame, area: Rect, text: &str) {
 
 fn draw_whats_new(f: &mut Frame, area: Rect, lines: &[String], scroll: usize) {
     let w = area.width.saturating_sub(8).max(20);
-    let h = (area.height / 3).max(6).min(area.height);
-    let visible_rows = h.saturating_sub(4) as usize;
-    let x = area.x + area.width.saturating_sub(w) / 2;
-    let y = area.y + area.height.saturating_sub(h) / 2;
-    let popup = Rect { x, y, width: w, height: h };
-
     let content_w = w.saturating_sub(6) as usize; // border(2) + padding(2) + bullet-indent(2)
     let dim = Style::default().fg(Color::Rgb(60, 60, 60));
 
@@ -633,6 +627,13 @@ fn draw_whats_new(f: &mut Frame, area: Rect, lines: &[String], scroll: usize) {
             )));
         }
     }
+
+    let max_h = (area.height / 3).max(6).min(area.height);
+    let h = (rendered.len() as u16 + 2).min(max_h);
+    let visible_rows = h.saturating_sub(2) as usize;
+    let x = area.x + area.width.saturating_sub(w) / 2;
+    let y = area.y + area.height.saturating_sub(h) / 2;
+    let popup = Rect { x, y, width: w, height: h };
 
     let total = rendered.len();
     let max_scroll = total.saturating_sub(visible_rows);
