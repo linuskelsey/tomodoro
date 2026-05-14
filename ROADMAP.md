@@ -10,6 +10,10 @@
 
 ## < 1.0
 
+### Patch
+- **Task label input lag** — cursor feels sluggish when typing in the label prompt; likely caused by the 100ms tick loop delay before keypresses are processed; input events should be handled with minimal latency independent of the animation tick rate
+- **`auto_start` + `default_profile` conflict** — when both are set, the default profile is not loaded; `auto_start` bypasses the picker so the profile selection never fires; fix should apply `default_profile` config before skipping the startup screen
+
 ### Minor
 - **Custom ambient tracks** — in-app audio file selector to assign user-provided tracks to themes; files placed in `~/.config/tomodoro/sounds/tracks/`; config stores assignments per theme
 - **Detail scaling** — different levels of scene detail for different terminal pane sizes
