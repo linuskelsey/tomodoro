@@ -104,6 +104,7 @@ update_check = true    # notify if a newer version is available on startup
 bar_style = "half"     # lock progress bar style: half | quarter | braille (default: follows render mode)
 default_profile = "deep"  # load this profile silently at startup (skips picker)
 defer_profile_switch = true  # apply mid-break profile switches after the break ends, not immediately
+daily_goal_mins = 120        # daily focus target in minutes; progress shown in header (0 = disabled)
 bell_sound = "~/.config/tomodoro/sounds/effects/bell.mp3"  # custom bell (ogg/mp3/wav/flac)
 beep_sound = "~/.config/tomodoro/sounds/effects/beep.mp3"  # custom countdown beep
 focus_color = "#e67e80"       # colour for phase label, timer, and dots during focus
@@ -153,6 +154,9 @@ Any field can be omitted — missing values fall back to the scalar defaults abo
 - **Phase colours** — configure the colour of the phase label (`F`/`B`/`LB`), timer, and session dots per phase via `focus_color`, `short_break_color`, `long_break_color` in config; accepts `#rrggbb`, `#rgb`, `rgb(r,g,b)`, or named colours; import from a TOML or waybar CSS theme file with `color_scheme` and `*_color_key` keys
 - **Custom effect sounds** — override the bell and countdown beep with any ogg, mp3, wav, or flac file via `bell_sound` and `beep_sound` in config; place files in `~/.config/tomodoro/sounds/effects/`
 - **Bar style** — lock the progress bar to `half`, `quarter`, or `braille` via `bar_style` in config, independent of the animation render mode
+- **Daily focus goal** — set `daily_goal_mins` in config to a target number of focus minutes per day; progress shown in the header alongside the session dots; turns green when the goal is met; resets at midnight
+- **Fortune popup** — shows a short quote from `fortune` as an overlay at the end of each focus session; dismissible with `q` or `Esc`; silently skipped if `fortune` is not installed
+- **What's new popup** — on the first launch after an update, a popup shows the key changes for the new version; dismissible with `q` or `Esc`; scrollable with `↑`/`↓` or `j`/`k`
 - **Shell completions** — `tomodoro completions <bash|zsh|fish>` prints a completion script; pipe into your shell's completion setup for tab completion
 - **Version management** — install and switch between old releases with `tomodoro install`, `list`, and `--use`
 

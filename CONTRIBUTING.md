@@ -26,9 +26,11 @@ sudo apt install libasound2-dev
 
 | File | Purpose |
 |------|---------|
-| `src/main.rs` | Event loop, input handling, app state |
+| `src/main.rs` | Event loop, input handling, audio threads, app state |
+| `src/ui.rs` | All ratatui rendering and popup functions |
+| `src/config.rs` | `AppConfig` struct, TOML load, validation, migration |
+| `src/history.rs` | Session logging to JSON, history display, daily totals |
 | `src/timer.rs` | Timer state machine and config |
-| `src/ui.rs` | All ratatui rendering, edit popup |
 | `src/animation/mod.rs` | Pixel buffer, render modes (half/quarter/braille), theme list, `Animation` struct |
 | `src/animation/waves.rs` | Waves scene |
 | `src/animation/rain.rs` | Rain scene |
@@ -49,6 +51,7 @@ sudo apt install libasound2-dev
 
 - [ ] **Help screen updated** — if you added, removed, or rebound a key, update `draw_help` (and `draw_endless_help` if applicable) in `src/ui.rs`
 - [ ] **Docs updated** — update `CHANGELOG.md` with a summary of the change; update `README.md` and `ROADMAP.md` if the feature or its scope changed
+- [ ] **SUMMARY.md updated** — if bumping the version, update `SUMMARY.md` with concise bullets (≤5 words each) for the what's new popup
 - [ ] **Version bumped** — increment the version in `Cargo.toml` following semver (patch for fixes, minor for new features, major for breaking changes)
 - [ ] **PR focused** — one feature or fix per PR
 - [ ] `cargo clippy` passes
