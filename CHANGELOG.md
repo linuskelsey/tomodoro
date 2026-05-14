@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.5] - Unreleased
+### Fixed
+- Task label input no longer lags — keypresses now trigger an immediate redraw instead of waiting up to 100ms for the next animation tick
+- `auto_start = true` with `default_profile` set now correctly labels the session with the profile name on launch
+
+---
+
 ## [0.6.4] - Unreleased
 ### Added
 - `Focus` column in `tomodoro history` — shows total focused time per day/task group

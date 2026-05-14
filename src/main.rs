@@ -498,7 +498,13 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
     let defer_profile_switch = cfg.defer_profile_switch;
     let mut pending_config: Option<(TimerConfig, String)> = None;
     let mut label_state: Option<LabelState> = None;
-    let mut task_label: Option<String> = None;
+    let mut task_label: Option<String> = if cfg.auto_start {
+        cfg.default_profile.as_deref()
+            .and_then(|dp| profile_entries.iter().find(|(n, _, _)| n == dp))
+            .map(|(name, _, _)| name.clone())
+    } else {
+        None
+    };
     let mut startup = !endless && !cfg.auto_start;
     let mut inhibit: Option<std::process::Child> = None;
     let tick = Duration::from_millis(TICK_MS);
@@ -507,7 +513,7 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
         timer.toggle(); // start running so anim ticks
     }
 
-    loop {
+    'main: loop {
         if update_notice.is_none() {
             if let Some(ref rx) = update_rx {
                 if let Ok(v) = rx.try_recv() { update_notice = Some(v); }
@@ -725,11 +731,12 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                                     let trimmed = ls.text.trim().to_string();
                                     task_label = if trimmed.is_empty() { None } else { Some(trimmed) };
                                     label_state = None;
+                                    continue 'main;
                                 }
-                                KeyCode::Esc => { label_state = None; }
+                                KeyCode::Esc => { label_state = None; continue 'main; }
                                 KeyCode::Char('c') if key.modifiers == KeyModifiers::CONTROL => return Ok(()),
-                                KeyCode::Backspace => { ls.text.pop(); }
-                                KeyCode::Char(c) => { ls.text.push(c); }
+                                KeyCode::Backspace => { ls.text.pop(); continue 'main; }
+                                KeyCode::Char(c) => { ls.text.push(c); continue 'main; }
                                 _ => {}
                             }
                         } else {
