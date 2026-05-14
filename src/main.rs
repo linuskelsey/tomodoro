@@ -40,7 +40,7 @@ const COMPLETION_BASH: &str = r#"_tomodoro_completions() {
     local cur prev words cword
     _init_completion || return
     local commands="install list history completions"
-    local flags="--help --version --endless --use"
+    local flags="--help --version --endless --use --pause --skip"
     case "$prev" in
         --use)
             return ;;
@@ -73,6 +73,8 @@ _tomodoro() {
         '(-V --version)'{-V,--version}'[Print version]'
         '(-E --endless)'{-E,--endless}'[Endless animation mode]'
         '(-u --use)'{-u,--use}'[Launch a specific installed version]:version'
+        '--pause[Pause or resume the current session]'
+        '--skip[Skip to the next phase]'
     )
     if (( CURRENT == 2 )); then
         _describe 'command' commands -- flags
@@ -90,6 +92,8 @@ complete -c tomodoro -s h -l help      -d 'Print help'
 complete -c tomodoro -s V -l version   -d 'Print version'
 complete -c tomodoro -s E -l endless   -d 'Endless animation mode'
 complete -c tomodoro -s u -l use       -d 'Launch a specific installed version' -r
+complete -c tomodoro -l pause          -d 'Pause or resume the current session'
+complete -c tomodoro -l skip           -d 'Skip to the next phase'
 complete -c tomodoro -n '__fish_use_subcommand' -a install     -d 'Install a version from crates.io'
 complete -c tomodoro -n '__fish_use_subcommand' -a list        -d 'List installed versions'
 complete -c tomodoro -n '__fish_use_subcommand' -a history     -d 'Show session history'
@@ -291,6 +295,46 @@ fn fetch_fortune() -> mpsc::Receiver<String> {
     rx
 }
 
+fn waybar_cmd_path(status_path: &str) -> String {
+    if let Some(stem) = status_path.strip_suffix(".json") {
+        format!("{}.cmd", stem)
+    } else {
+        format!("{}.cmd", status_path)
+    }
+}
+
+fn write_waybar_status(path: &str, timer: &Timer, task_label: Option<&str>, signal: Option<u8>) {
+    let (phase_str, base_class) = match timer.phase {
+        Phase::Work => ("F", "focus"),
+        Phase::ShortBreak => ("B", "short-break"),
+        Phase::LongBreak => ("LB", "long-break"),
+    };
+    let class = if timer.running {
+        format!("\"{}\"", base_class)
+    } else {
+        format!("[\"{}\",\"paused\"]", base_class)
+    };
+    let interval = timer.config.long_break_interval;
+    let current = match timer.phase {
+        Phase::Work => (timer.sessions_completed % interval) + 1,
+        Phase::ShortBreak => timer.sessions_completed % interval,
+        Phase::LongBreak => interval,
+    };
+    let text = format!("{} {} {}/{}", phase_str, timer.format_remaining(), current, interval);
+    let tooltip = task_label.unwrap_or("").replace('\\', "\\\\").replace('"', "\\\"");
+    let _ = std::fs::write(
+        path,
+        format!("{{\"text\":\"{}\",\"tooltip\":\"{}\",\"class\":{}}}\n", text, tooltip, class),
+    );
+    if let Some(n) = signal {
+        let _ = std::process::Command::new("pkill")
+            .args([&format!("-RTMIN+{}", n), "waybar"])
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn();
+    }
+}
+
 fn start_inhibit() -> Option<std::process::Child> {
     std::process::Command::new("systemd-inhibit")
         .args(["--what=sleep:idle", "--who=tomodoro", "--why=Focus session", "--mode=block", "sleep", "infinity"])
@@ -378,7 +422,7 @@ fn main() -> io::Result<()> {
 
     if args.iter().any(|a| a == "--help" || a == "-h") {
         println!(
-            "tomodoro {}\n\nUSAGE:\n    tomodoro [OPTIONS]\n    tomodoro <COMMAND>\n\nOPTIONS:\n    -h, --help               Print this help\n    -V, --version            Print version\n    -E, --endless            Endless animation mode (no timers, no sounds)\n    -u, --use <version>      Launch a specific installed version\n\nCOMMANDS:\n    install <version>        Install a version from crates.io\n    list                     List installed versions\n    history [--full]         Show session history (last 20 days by default)\n    completions <shell>      Print shell completion script (bash, zsh, fish)",
+            "tomodoro {}\n\nUSAGE:\n    tomodoro [OPTIONS]\n    tomodoro <COMMAND>\n\nOPTIONS:\n    -h, --help               Print this help\n    -V, --version            Print version\n    -E, --endless            Endless animation mode (no timers, no sounds)\n    -u, --use <version>      Launch a specific installed version\n        --pause              Pause or resume the running session (IPC via waybar_path)\n        --skip               Skip to the next phase (IPC via waybar_path)\n\nCOMMANDS:\n    install <version>        Install a version from crates.io\n    list                     List installed versions\n    history [--full]         Show session history (last 20 days by default)\n    completions <shell>      Print shell completion script (bash, zsh, fish)",
             env!("CARGO_PKG_VERSION")
         );
         return Ok(());
@@ -409,6 +453,17 @@ fn main() -> io::Result<()> {
                 return Ok(());
             }
         },
+        Some("--pause") | Some("--skip") => {
+            let cmd = if args.get(1).map(|s| s.as_str()) == Some("--pause") { "pause" } else { "skip" };
+            let cfg = AppConfig::load();
+            if let Some(ref wp) = cfg.waybar_path {
+                let cmd_path = waybar_cmd_path(&expand_tilde(wp));
+                let _ = std::fs::write(&cmd_path, cmd);
+            } else {
+                eprintln!("waybar_path not set in config; --pause/--skip require waybar_path.");
+            }
+            return Ok(());
+        }
         _ => {}
     }
 
@@ -448,6 +503,7 @@ fn main() -> io::Result<()> {
     } else {
         Some(cfg.warnings.clone())
     };
+    let waybar_cleanup: Option<String> = cfg.waybar_path.as_deref().map(expand_tilde);
 
     let mut stdout = io::stdout();
     enable_raw_mode()?;
@@ -461,6 +517,11 @@ fn main() -> io::Result<()> {
     execute!(terminal.backend_mut(), DisableFocusChange, LeaveAlternateScreen)?;
     terminal.show_cursor()?;
 
+    if let Some(ref path) = waybar_cleanup {
+        let _ = std::fs::remove_file(path);
+        let _ = std::fs::remove_file(waybar_cmd_path(path));
+    }
+
     result
 }
 
@@ -468,6 +529,8 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
     let daily_goal_mins = cfg.daily_goal_mins;
     let bell_sound = cfg.bell_sound.clone();
     let beep_sound = cfg.beep_sound.clone();
+    let waybar_path: Option<String> = cfg.waybar_path.as_deref().map(expand_tilde);
+    let waybar_signal: Option<u8> = cfg.waybar_signal;
     let audio = audio_thread();
     let ambient = ambient_thread();
     let mut last_ambient: Option<usize> = None;
@@ -990,6 +1053,37 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                     last_beep_sec = None;
                     ding_pending += 1;
                     sync_inhibit(&mut inhibit, timer.running && timer.phase == Phase::Work);
+                }
+            }
+        }
+
+        if !endless {
+            if let Some(ref path) = waybar_path {
+                write_waybar_status(path, &timer, task_label.as_deref(), waybar_signal);
+                let cmd_path = waybar_cmd_path(path);
+                if let Ok(cmd) = std::fs::read_to_string(&cmd_path) {
+                    let _ = std::fs::remove_file(&cmd_path);
+                    match cmd.trim() {
+                        "pause" => {
+                            timer.toggle();
+                            sync_inhibit(&mut inhibit, timer.running && timer.phase == Phase::Work);
+                        }
+                        "skip" => {
+                            if timer.phase == Phase::Work
+                                && timer.elapsed().as_secs() * 2 >= timer.config.work_secs
+                            {
+                                history::log_session(timer.elapsed().as_secs() / 60, task_label.as_deref());
+                                if daily_goal_mins > 0 {
+                                    today_mins = history::today_total_mins();
+                                }
+                                fortune_rx = Some(fetch_fortune());
+                            }
+                            if timer.advance() { ding_pending += 1; }
+                            last_beep_sec = None;
+                            sync_inhibit(&mut inhibit, timer.running && timer.phase == Phase::Work);
+                        }
+                        _ => {}
+                    }
                 }
             }
         }

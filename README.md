@@ -46,6 +46,8 @@ On launch, if you have profiles defined in config a picker lets you choose one �
 tomodoro --help                 # list flags and subcommands
 tomodoro --version              # print version
 tomodoro --endless              # endless animation mode (also -E)
+tomodoro --pause                # pause or resume the running session (IPC)
+tomodoro --skip                 # skip to the next phase (IPC)
 tomodoro history                # show session history (last 20 rows)
 tomodoro history --full         # show complete session history
 tomodoro completions bash       # print bash completion script
@@ -85,36 +87,7 @@ tomodoro completions fish > ~/.config/fish/completions/tomodoro.fish
 
 ## Config
 
-On first launch, `~/.config/tomodoro/config.toml` is created with all options commented out (respects `$XDG_CONFIG_HOME` if set). Uncomment and edit to set persistent defaults:
-
-```toml
-theme = 2              # starting animation (0–7): waves, rain, leaves, stars, fire, aurora, blossom, sunset
-focus_theme = 4        # animation for focus phase
-break_theme = 0        # animation for break phases
-render_mode = "half"   # half | quarter | braille
-focus = 25             # minutes
-short_break = 5
-long_break = 15
-volume = 0.8           # 0.0–1.0
-long_break_interval = 4
-auto_start = false     # skip startup screen
-countdown_beeps = 5    # beep seconds before break ends
-notifications = false  # notify-send on phase end
-update_check = true    # notify if a newer version is available on startup
-bar_style = "half"     # lock progress bar style: half | quarter | braille (default: follows render mode)
-default_profile = "deep"  # load this profile silently at startup (skips picker)
-defer_profile_switch = true  # apply mid-break profile switches after the break ends, not immediately
-daily_goal_mins = 120        # daily focus target in minutes; progress shown in header (0 = disabled)
-bell_sound = "~/.config/tomodoro/sounds/effects/bell.mp3"  # custom bell (ogg/mp3/wav/flac)
-beep_sound = "~/.config/tomodoro/sounds/effects/beep.mp3"  # custom countdown beep
-focus_color = "#e67e80"       # colour for phase label, timer, and dots during focus
-short_break_color = "#a7c080" # colour during short breaks
-long_break_color = "#7fbbb3"  # colour during long breaks
-color_scheme = "~/.config/omarchy/current_theme.toml"  # import colours from a TOML or waybar CSS file
-focus_color_key = "color1"       # key in the scheme file for focus colour
-short_break_color_key = "color2" # key in the scheme file for short break colour
-long_break_color_key = "color4"  # key in the scheme file for long break colour
-```
+On first launch, `~/.config/tomodoro/config.toml` is created with all options commented out (respects `$XDG_CONFIG_HOME` if set). The generated file is the authoritative reference — every key is documented inline. Open it to explore and uncomment what you need.
 
 Timer profiles are defined as TOML tables and appear in the startup picker:
 
@@ -132,6 +105,71 @@ long_break = 10
 ```
 
 Any field can be omitted — missing values fall back to the scalar defaults above. `long_break_interval` can be set per profile independently of the global value. Custom audio files can be placed in `~/.config/tomodoro/sounds/effects/` (created automatically on first launch).
+
+## Bar integration
+
+Set `waybar_path` in config to a file path — tomodoro writes a JSON status object there on every tick while running, and deletes it on exit:
+
+```toml
+waybar_path = "/tmp/tomodoro.json"
+```
+
+Output format:
+
+```json
+{"text":"F 24:13 2/4","tooltip":"task label","class":"focus"}
+```
+
+`class` is `focus`, `short-break`, or `long-break`; `["focus","paused"]` when paused.
+
+Use `--pause` and `--skip` flags to control the running session from outside (waybar clicks, keybinds, scripts, etc.).
+
+### Waybar
+
+```json
+"custom/tomodoro": {
+    "exec": "cat /tmp/tomodoro.json",
+    "return-type": "json",
+    "interval": 0,
+    "signal": 5,
+    "on-click": "/path/to/tomodoro --pause",
+    "on-click-right": "/path/to/tomodoro --skip"
+}
+```
+
+For instant updates instead of polling, set `waybar_signal` to match the waybar `signal` number (1–30, avoid clashes with other modules):
+
+```toml
+waybar_signal = 5
+```
+
+With `waybar_signal` set, use `"interval": 0` in the waybar module — it only updates on signal.
+
+CSS classes:
+
+```css
+#custom-tomodoro { color: #e67e80; }
+#custom-tomodoro.short-break { color: #a7c080; }
+#custom-tomodoro.long-break  { color: #7fbbb3; }
+#custom-tomodoro.paused      { opacity: 0.5; }
+```
+
+### Polybar
+
+```ini
+[module/tomodoro]
+type = custom/script
+exec = cat /tmp/tomodoro.json | jq -r '.text'
+interval = 1
+click-left = tomodoro --pause
+click-right = tomodoro --skip
+```
+
+### eww
+
+```lisp
+(deflisten tomodoro :initial "" "tail -f /tmp/tomodoro.json | jq -r '.text'")
+```
 
 ## Features
 

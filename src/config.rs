@@ -31,6 +31,8 @@ pub struct AppConfig {
     pub beep_sound: Option<String>,
     pub defer_profile_switch: bool,
     pub daily_goal_mins: u64,
+    pub waybar_path: Option<String>,
+    pub waybar_signal: Option<u8>,
     pub focus_color: Option<String>,
     pub short_break_color: Option<String>,
     pub long_break_color: Option<String>,
@@ -65,6 +67,8 @@ impl Default for AppConfig {
             beep_sound: None,
             defer_profile_switch: true,
             daily_goal_mins: 0,
+            waybar_path: None,
+            waybar_signal: None,
             focus_color: None,
             short_break_color: None,
             long_break_color: None,
@@ -98,6 +102,8 @@ const KNOWN_KEYS: &[&str] = &[
     "beep_sound",
     "defer_profile_switch",
     "daily_goal_mins",
+    "waybar_path",
+    "waybar_signal",
     "focus_color",
     "short_break_color",
     "long_break_color",
@@ -150,6 +156,11 @@ const DEFAULT_CONFIG: &str = r##"# tomodoro configuration
 
 # Daily focus goal in minutes — progress shown in header (0 = disabled)
 # daily_goal_mins = 0
+
+# Path to write status JSON; enables bar integration and --pause/--skip IPC
+# waybar_path = "/tmp/tomodoro.json"
+# Send SIGRTMIN+N to waybar after each status write for instant updates (set "signal": N in waybar module)
+# waybar_signal = 5
 
 # Countdown beep seconds at end of each break
 # countdown_beeps = 5
@@ -556,6 +567,12 @@ fn build_config_content(config: &AppConfig, explicit: &std::collections::HashSet
     }
     if config.daily_goal_mins != d.daily_goal_mins || explicit.contains("daily_goal_mins") {
         set(&mut out, "# daily_goal_mins = 0", &format!("daily_goal_mins = {}", config.daily_goal_mins));
+    }
+    if let Some(ref s) = config.waybar_path {
+        set(&mut out, "# waybar_path = \"/tmp/tomodoro.json\"", &format!("waybar_path = \"{}\"", s));
+    }
+    if let Some(n) = config.waybar_signal {
+        set(&mut out, "# waybar_signal = 5", &format!("waybar_signal = {}", n));
     }
     if let Some(ref s) = config.focus_color {
         set(&mut out, "# focus_color = \"#e67e80\"", &format!("focus_color = \"{}\"", s));
