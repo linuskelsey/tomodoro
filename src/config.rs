@@ -30,6 +30,7 @@ pub struct AppConfig {
     pub bell_sound: Option<String>,
     pub beep_sound: Option<String>,
     pub defer_profile_switch: bool,
+    pub daily_goal_mins: u64,
     pub focus_color: Option<String>,
     pub short_break_color: Option<String>,
     pub long_break_color: Option<String>,
@@ -63,6 +64,7 @@ impl Default for AppConfig {
             bell_sound: None,
             beep_sound: None,
             defer_profile_switch: true,
+            daily_goal_mins: 0,
             focus_color: None,
             short_break_color: None,
             long_break_color: None,
@@ -95,6 +97,7 @@ const KNOWN_KEYS: &[&str] = &[
     "bell_sound",
     "beep_sound",
     "defer_profile_switch",
+    "daily_goal_mins",
     "focus_color",
     "short_break_color",
     "long_break_color",
@@ -144,6 +147,9 @@ const DEFAULT_CONFIG: &str = r##"# tomodoro configuration
 
 # When switching profiles during a break, defer the change until the break ends
 # defer_profile_switch = true
+
+# Daily focus goal in minutes — progress shown in header (0 = disabled)
+# daily_goal_mins = 0
 
 # Countdown beep seconds at end of each break
 # countdown_beeps = 5
@@ -547,6 +553,9 @@ fn build_config_content(config: &AppConfig, explicit: &std::collections::HashSet
     }
     if config.defer_profile_switch != d.defer_profile_switch || explicit.contains("defer_profile_switch") {
         set(&mut out, "# defer_profile_switch = true", &format!("defer_profile_switch = {}", config.defer_profile_switch));
+    }
+    if config.daily_goal_mins != d.daily_goal_mins || explicit.contains("daily_goal_mins") {
+        set(&mut out, "# daily_goal_mins = 0", &format!("daily_goal_mins = {}", config.daily_goal_mins));
     }
     if let Some(ref s) = config.focus_color {
         set(&mut out, "# focus_color = \"#e67e80\"", &format!("focus_color = \"{}\"", s));

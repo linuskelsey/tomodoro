@@ -23,6 +23,16 @@ pub fn log_session(duration_mins: u64, label: Option<&str>) {
     }
 }
 
+pub fn today_total_mins() -> u64 {
+    let today = timestamp_now();
+    let today = today.get(..10).unwrap_or("");
+    load_sessions()
+        .iter()
+        .filter(|s| s.timestamp.starts_with(today))
+        .map(|s| s.duration_mins)
+        .sum()
+}
+
 pub fn print_history(full: bool) {
     let sessions = load_sessions();
     if sessions.is_empty() {
