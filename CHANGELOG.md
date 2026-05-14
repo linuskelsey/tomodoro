@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.6] - 2026-05-14
+### Added
+- Fortune popup — shows a quote from `fortune` at the end of each focus session; dismissible with `q` or `Esc`; silently skipped if `fortune` is not installed
+- What's new popup — on first launch after an update, a popup lists the key changes for the new version; dismissible with any key
+- Daily focus goal — set `daily_goal_mins` in config to a target number of focus minutes per day; today's progress shown in the header; resets at midnight
+
+---
+
 ## [0.6.5] - 2026-05-14
 ### Fixed
 - Task label input no longer lags — keypresses now trigger an immediate redraw instead of waiting up to 100ms for the next animation tick
