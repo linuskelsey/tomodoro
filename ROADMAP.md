@@ -2,6 +2,7 @@
 
 ## Before 1.0 dev (ships to both classic and tomodoro)
 - **Terminal palette colours** — query the terminal's actual color palette at startup via OSC 4 escape sequences; use the resolved RGB values of color1, color2, color4 as the default focus, short break, and long break colours; falls back to ANSI named colours on terminals that don't respond; requires no user config
+- **Popup keypress lag** — what's new, fortune, and other popups share the 1s idle tick used for paused-timer state; active UI states (any open popup, edit, label, profile picker) should keep the 100ms tick so keystrokes feel instant
 
 ## tomodoro-classic
 - **Custom ambient tracks** — in-app audio file selector to assign user-provided tracks to themes; files placed in `~/.config/tomodoro/sounds/tracks/`; config stores assignments per theme
