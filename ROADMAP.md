@@ -3,6 +3,8 @@
 ## Before 1.0 dev (ships to both classic and tomodoro)
 - **Terminal palette colours** — query the terminal's actual color palette at startup via OSC 4 escape sequences; use the resolved RGB values of color1, color2, color4 as the default focus, short break, and long break colours; falls back to ANSI named colours on terminals that don't respond; requires no user config
 - **Popup keypress lag** — what's new, fortune, and other popups share the 1s idle tick used for paused-timer state; active UI states (any open popup, edit, label, profile picker) should keep the 100ms tick so keystrokes feel instant
+- **Fortune popup background bleed** — animation frames from the break theme (e.g. blossom) render through the fortune overlay; popup likely missing a `Clear` widget render before drawing its content; may be triggered specifically when a different break theme is set in config
+- **Waybar widget latency** — switching from `bar_signal` to `interval: 1` polling introduced up to 1s update lag; ideal fix is an `inotifywait`-based long-lived exec script in waybar that watches `/tmp/tomodoro.json` for writes (instant, zero idle CPU, no signals or process spawning from tomodoro side, requires `inotify-tools`); intermediate option is `interval: 1` + `bar_signal` combined so signal gives instant update and polling is the fallback
 
 ## tomodoro-classic
 - **Custom ambient tracks** — in-app audio file selector to assign user-provided tracks to themes; files placed in `~/.config/tomodoro/sounds/tracks/`; config stores assignments per theme
