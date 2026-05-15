@@ -607,6 +607,26 @@ fn draw_fortune(f: &mut Frame, area: Rect, text: &str, scroll: usize) {
     );
 }
 
+pub fn whats_new_max_scroll(lines: &[String], term_width: u16, term_height: u16) -> usize {
+    let w = term_width.saturating_sub(8).max(20);
+    let content_w = w.saturating_sub(6) as usize;
+    let mut rendered_count = 0usize;
+    for line in lines {
+        let trimmed = line.trim_start();
+        if trimmed.starts_with("###") {
+            rendered_count += 1;
+        } else if let Some(bullet) = trimmed.strip_prefix("- ") {
+            rendered_count += wrap_text(bullet, content_w).len();
+        } else {
+            rendered_count += 1;
+        }
+    }
+    let max_h = (term_height / 3).max(6).min(term_height);
+    let h = (rendered_count as u16 + 2).min(max_h);
+    let visible_rows = h.saturating_sub(2) as usize;
+    rendered_count.saturating_sub(visible_rows)
+}
+
 fn draw_whats_new(f: &mut Frame, area: Rect, lines: &[String], scroll: usize) {
     let w = area.width.saturating_sub(8).max(20);
     let content_w = w.saturating_sub(6) as usize; // border(2) + padding(2) + bullet-indent(2)
