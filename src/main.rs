@@ -295,7 +295,7 @@ fn fetch_fortune() -> mpsc::Receiver<String> {
     rx
 }
 
-fn waybar_cmd_path(status_path: &str) -> String {
+fn bar_cmd_path(status_path: &str) -> String {
     if let Some(stem) = status_path.strip_suffix(".json") {
         format!("{}.cmd", stem)
     } else {
@@ -303,7 +303,7 @@ fn waybar_cmd_path(status_path: &str) -> String {
     }
 }
 
-fn write_waybar_status(path: &str, timer: &Timer, task_label: Option<&str>, signal: Option<u8>) {
+fn write_bar_status(path: &str, timer: &Timer, task_label: Option<&str>, signal: Option<u8>) {
     let (phase_str, base_class) = match timer.phase {
         Phase::Work => ("F", "focus"),
         Phase::ShortBreak => ("B", "short-break"),
@@ -422,7 +422,7 @@ fn main() -> io::Result<()> {
 
     if args.iter().any(|a| a == "--help" || a == "-h") {
         println!(
-            "tomodoro {}\n\nUSAGE:\n    tomodoro [OPTIONS]\n    tomodoro <COMMAND>\n\nOPTIONS:\n    -h, --help               Print this help\n    -V, --version            Print version\n    -E, --endless            Endless animation mode (no timers, no sounds)\n    -u, --use <version>      Launch a specific installed version\n        --pause              Pause or resume the running session (IPC via waybar_path)\n        --skip               Skip to the next phase (IPC via waybar_path)\n\nCOMMANDS:\n    install <version>        Install a version from crates.io\n    list                     List installed versions\n    history [--full]         Show session history (last 20 days by default)\n    completions <shell>      Print shell completion script (bash, zsh, fish)",
+            "tomodoro {}\n\nUSAGE:\n    tomodoro [OPTIONS]\n    tomodoro <COMMAND>\n\nOPTIONS:\n    -h, --help               Print this help\n    -V, --version            Print version\n    -E, --endless            Endless animation mode (no timers, no sounds)\n    -u, --use <version>      Launch a specific installed version\n        --pause              Pause or resume the running session (IPC via bar_path)\n        --skip               Skip to the next phase (IPC via bar_path)\n\nCOMMANDS:\n    install <version>        Install a version from crates.io\n    list                     List installed versions\n    history [--full]         Show session history (last 20 days by default)\n    completions <shell>      Print shell completion script (bash, zsh, fish)",
             env!("CARGO_PKG_VERSION")
         );
         return Ok(());
@@ -456,11 +456,11 @@ fn main() -> io::Result<()> {
         Some("--pause") | Some("--skip") => {
             let cmd = if args.get(1).map(|s| s.as_str()) == Some("--pause") { "pause" } else { "skip" };
             let cfg = AppConfig::load();
-            if let Some(ref wp) = cfg.waybar_path {
-                let cmd_path = waybar_cmd_path(&expand_tilde(wp));
+            if let Some(ref wp) = cfg.bar_path {
+                let cmd_path = bar_cmd_path(&expand_tilde(wp));
                 let _ = std::fs::write(&cmd_path, cmd);
             } else {
-                eprintln!("waybar_path not set in config; --pause/--skip require waybar_path.");
+                eprintln!("bar_path not set in config; --pause/--skip require bar_path.");
             }
             return Ok(());
         }
@@ -503,7 +503,7 @@ fn main() -> io::Result<()> {
     } else {
         Some(cfg.warnings.clone())
     };
-    let waybar_cleanup: Option<String> = cfg.waybar_path.as_deref().map(expand_tilde);
+    let bar_cleanup: Option<String> = cfg.bar_path.as_deref().map(expand_tilde);
 
     let mut stdout = io::stdout();
     enable_raw_mode()?;
@@ -517,9 +517,9 @@ fn main() -> io::Result<()> {
     execute!(terminal.backend_mut(), DisableFocusChange, LeaveAlternateScreen)?;
     terminal.show_cursor()?;
 
-    if let Some(ref path) = waybar_cleanup {
+    if let Some(ref path) = bar_cleanup {
         let _ = std::fs::remove_file(path);
-        let _ = std::fs::remove_file(waybar_cmd_path(path));
+        let _ = std::fs::remove_file(bar_cmd_path(path));
     }
 
     result
@@ -529,8 +529,8 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
     let daily_goal_mins = cfg.daily_goal_mins;
     let bell_sound = cfg.bell_sound.clone();
     let beep_sound = cfg.beep_sound.clone();
-    let waybar_path: Option<String> = cfg.waybar_path.as_deref().map(expand_tilde);
-    let waybar_signal: Option<u8> = cfg.waybar_signal;
+    let bar_path: Option<String> = cfg.bar_path.as_deref().map(expand_tilde);
+    let bar_signal: Option<u8> = cfg.bar_signal;
     let audio = audio_thread();
     let ambient = ambient_thread();
     let mut last_ambient: Option<usize> = None;
@@ -877,16 +877,13 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                             }
                         } else if fortune_state.is_some() {
                             match (key.code, key.modifiers) {
-                                (KeyCode::Char('q'), _) | (KeyCode::Esc, _) | (KeyCode::Char('c'), KeyModifiers::CONTROL) => {
-                                    fortune_state = None;
-                                }
                                 (KeyCode::Down, _) | (KeyCode::Char('j'), _) => {
                                     if let Some((_, ref mut s)) = fortune_state { *s = s.saturating_add(1); }
                                 }
                                 (KeyCode::Up, _) | (KeyCode::Char('k'), _) => {
                                     if let Some((_, ref mut s)) = fortune_state { *s = s.saturating_sub(1); }
                                 }
-                                _ => {}
+                                _ => { fortune_state = None; }
                             }
                         } else if whats_new.is_some() {
                             match (key.code, key.modifiers) {
@@ -894,7 +891,11 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
                                     whats_new = None;
                                 }
                                 (KeyCode::Down, _) | (KeyCode::Char('j'), _) => {
-                                    if let Some((_, ref mut s)) = whats_new { *s = s.saturating_add(1); }
+                                    if let Some((ref lines, ref mut s)) = whats_new {
+                                        let sz = terminal.size().unwrap_or_default();
+                                        let max = ui::whats_new_max_scroll(lines, sz.width, sz.height);
+                                        *s = (*s + 1).min(max);
+                                    }
                                 }
                                 (KeyCode::Up, _) | (KeyCode::Char('k'), _) => {
                                     if let Some((_, ref mut s)) = whats_new { *s = s.saturating_sub(1); }
@@ -1058,9 +1059,9 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
         }
 
         if !endless {
-            if let Some(ref path) = waybar_path {
-                write_waybar_status(path, &timer, task_label.as_deref(), waybar_signal);
-                let cmd_path = waybar_cmd_path(path);
+            if let Some(ref path) = bar_path {
+                write_bar_status(path, &timer, task_label.as_deref(), bar_signal);
+                let cmd_path = bar_cmd_path(path);
                 if let Ok(cmd) = std::fs::read_to_string(&cmd_path) {
                     let _ = std::fs::remove_file(&cmd_path);
                     match cmd.trim() {

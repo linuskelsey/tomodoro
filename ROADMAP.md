@@ -1,8 +1,6 @@
 # Roadmap
 
 ## Before 1.0 dev (ships to both classic and tomodoro)
-- **Config cleanup** — group keys into commented sections (timer, audio, display, integrations); auto-generate config from a single source of truth so new keys can't be added without docs; remove the "add to four places" burden from contributors
-- **Waybar integration** — expose timer state (phase, remaining time, task label) as a waybar custom module; write JSON to a socket or file that waybar's `custom/tomodoro` module polls; output format: `{"text": "F 24:13", "tooltip": "task label", "class": "focus"}`; class switches between `focus`, `short-break`, `long-break` for CSS theming; optionally emit click commands to pause/skip via `tomodoro --pause` / `--skip` IPC flags
 - **Terminal palette colours** — query the terminal's actual color palette at startup via OSC 4 escape sequences; use the resolved RGB values of color1, color2, color4 as the default focus, short break, and long break colours; falls back to ANSI named colours on terminals that don't respond; requires no user config
 
 ## tomodoro-classic
@@ -17,3 +15,4 @@
 - **Internet radio channels** — built-in curated list of stream URLs (NTS, Soma FM, etc.); selectable from config or a TUI picker; streams play during focus sessions via an HTTP audio backend; user can add custom stream URLs in config
 - **Custom animations** — import user-made pixel art as animation frames; define frame sequences in config pointing at files (e.g. PNG strips or Aseprite exports); support common terminal pixel art editors (timg-compatible, pixterm); frames rendered via the existing sixel/kitty path
 - **Spotify integration** — connect Spotify account via OAuth; auto play/pause on session start/end; user selects a playlist to shuffle during focus sessions
+- **Command mode** — `:` opens a vim-style command prompt; supports commands like `:focus 50`, `:theme aurora`, `:vol 0.8`, `:skip`, `:pause`, `:label my task`; tab completion for command names and values; history navigable with `↑`/`↓`; offers a discoverable alternative to config edits and keybinds

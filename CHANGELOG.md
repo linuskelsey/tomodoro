@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.7.0] - 2026-05-14
+### Added
+- Status bar integration — set `bar_path` in config to write a JSON status file on every tick; waybar, eww, Polybar all supported; `bar_signal` sends SIGRTMIN+N for instant updates without polling
+- `--pause` and `--skip` IPC flags — control the running session from outside (bar clicks, keybinds, scripts)
+
+### Changed
+- Config grouped into sections (Timer, Display, Colours, Audio, Integrations, Profiles) for easier navigation; existing configs auto-migrate to the new layout on first run
+- Config key validation now derived from the template automatically — one fewer place to update when adding keys
+- `waybar_path` / `waybar_signal` renamed to `bar_path` / `bar_signal` to reflect support for any status bar
+- Fortune popup now dismissible by any key
+
+### Fixed
+- What's new popup scroll state correctly capped — pressing down past the bottom no longer requires equal up presses to scroll back
+
+---
+
 ## [0.6.6] - 2026-05-14
 ### Added
 - Fortune popup — shows a quote from `fortune` at the end of each focus session; dismissible with `q` or `Esc`; silently skipped if `fortune` is not installed

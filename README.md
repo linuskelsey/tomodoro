@@ -108,10 +108,10 @@ Any field can be omitted — missing values fall back to the scalar defaults abo
 
 ## Bar integration
 
-Set `waybar_path` in config to a file path — tomodoro writes a JSON status object there on every tick while running, and deletes it on exit:
+Set `bar_path` in config to a file path — tomodoro writes a JSON status object there on every tick while running, and deletes it on exit:
 
 ```toml
-waybar_path = "/tmp/tomodoro.json"
+bar_path = "/tmp/tomodoro.json"
 ```
 
 Output format:
@@ -137,13 +137,13 @@ Use `--pause` and `--skip` flags to control the running session from outside (wa
 }
 ```
 
-For instant updates instead of polling, set `waybar_signal` to match the waybar `signal` number (1–30, avoid clashes with other modules):
+For instant updates instead of polling, set `bar_signal` to match the waybar `signal` number (1–30, avoid clashes with other modules):
 
 ```toml
-waybar_signal = 5
+bar_signal = 5
 ```
 
-With `waybar_signal` set, use `"interval": 0` in the waybar module — it only updates on signal.
+With `bar_signal` set, use `"interval": 0` in the waybar module — it only updates on signal.
 
 CSS classes:
 
@@ -193,8 +193,8 @@ click-right = tomodoro --skip
 - **Custom effect sounds** — override the bell and countdown beep with any ogg, mp3, wav, or flac file via `bell_sound` and `beep_sound` in config; place files in `~/.config/tomodoro/sounds/effects/`
 - **Bar style** — lock the progress bar to `half`, `quarter`, or `braille` via `bar_style` in config, independent of the animation render mode
 - **Daily focus goal** — set `daily_goal_mins` in config to a target number of focus minutes per day; progress shown in the header alongside the session dots; turns green when the goal is met; resets at midnight
-- **Fortune popup** — shows a short quote from `fortune` as an overlay at the end of each focus session; dismissible with `q` or `Esc`; silently skipped if `fortune` is not installed
-- **What's new popup** — on the first launch after an update, a popup shows the key changes for the new version; dismissible with `q` or `Esc`; scrollable with `↑`/`↓` or `j`/`k`
+- **Fortune popup** — shows a short quote from `fortune` as an overlay at the end of each focus session; dismissible with any key; silently skipped if `fortune` is not installed
+- **What's new popup** — on the first launch after an update, a popup shows the key changes for the new version; dismissible with any key; scrollable with `↑`/`↓` or `j`/`k`
 - **Shell completions** — `tomodoro completions <bash|zsh|fish>` prints a completion script; pipe into your shell's completion setup for tab completion
 - **Version management** — install and switch between old releases with `tomodoro install`, `list`, and `--use`
 

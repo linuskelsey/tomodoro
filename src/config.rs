@@ -31,8 +31,8 @@ pub struct AppConfig {
     pub beep_sound: Option<String>,
     pub defer_profile_switch: bool,
     pub daily_goal_mins: u64,
-    pub waybar_path: Option<String>,
-    pub waybar_signal: Option<u8>,
+    pub bar_path: Option<String>,
+    pub bar_signal: Option<u8>,
     pub focus_color: Option<String>,
     pub short_break_color: Option<String>,
     pub long_break_color: Option<String>,
@@ -67,8 +67,8 @@ impl Default for AppConfig {
             beep_sound: None,
             defer_profile_switch: true,
             daily_goal_mins: 0,
-            waybar_path: None,
-            waybar_signal: None,
+            bar_path: None,
+            bar_signal: None,
             focus_color: None,
             short_break_color: None,
             long_break_color: None,
@@ -81,42 +81,58 @@ impl Default for AppConfig {
     }
 }
 
-const KNOWN_KEYS: &[&str] = &[
-    "theme",
-    "render_mode",
-    "focus_theme",
-    "break_theme",
-    "focus",
-    "short_break",
-    "long_break",
-    "volume",
-    "long_break_interval",
-    "auto_start",
-    "countdown_beeps",
-    "notifications",
-    "update_check",
-    "bar_style",
-    "default_profile",
-    "profiles",
-    "bell_sound",
-    "beep_sound",
-    "defer_profile_switch",
-    "daily_goal_mins",
-    "waybar_path",
-    "waybar_signal",
-    "focus_color",
-    "short_break_color",
-    "long_break_color",
-    "color_scheme",
-    "focus_color_key",
-    "short_break_color_key",
-    "long_break_color_key",
-];
+// Derives the list of recognised config keys from DEFAULT_CONFIG at runtime,
+// so KNOWN_KEYS and the template stay in sync automatically.
+// "profiles" is added explicitly — it's a TOML table, not a key = value line.
+fn known_keys() -> Vec<&'static str> {
+    let mut keys = vec!["profiles"];
+    let mut in_profiles_example = false;
+    for line in DEFAULT_CONFIG.lines() {
+        let s = line.trim().trim_start_matches('#').trim();
+        if s.starts_with("[profiles.") {
+            in_profiles_example = true;
+        }
+        if in_profiles_example {
+            continue;
+        }
+        if let Some((key, _)) = s.split_once(" =") {
+            let k = key.trim();
+            if !k.is_empty() {
+                keys.push(k);
+            }
+        }
+    }
+    keys
+}
 
 const DEFAULT_CONFIG: &str = r##"# tomodoro configuration
 # All values shown are defaults. Uncomment and edit to customise.
+#
+# To add a new key: update AppConfig (field), Default::default (value),
+# DEFAULT_CONFIG (template line), and build_config_content (serialiser).
 
-# Starting animation theme (0–7): waves, rain, leaves, stars, fire, aurora, blossom, sunset
+# ── Timer ────────────────────────────────────────────────────────────────────
+
+# Duration of each phase in minutes
+# focus = 25
+# short_break = 5
+# long_break = 15
+
+# Focus sessions before a long break
+# long_break_interval = 4
+
+# Skip the startup screen and begin immediately
+# auto_start = false
+
+# When switching profiles during a break, defer the change until the break ends
+# defer_profile_switch = true
+
+# Daily focus goal in minutes — progress shown in header (0 = disabled)
+# daily_goal_mins = 0
+
+# ── Display ──────────────────────────────────────────────────────────────────
+
+# Animation theme (0–7): waves, rain, leaves, stars, fire, aurora, blossom, sunset
 # theme = 0
 
 # Per-phase themes — overrides `theme` for each phase independently
@@ -125,6 +141,11 @@ const DEFAULT_CONFIG: &str = r##"# tomodoro configuration
 
 # Render mode: "half", "quarter", or "braille"
 # render_mode = "half"
+
+# Lock the progress bar to a specific style regardless of render mode: "half", "quarter", "braille"
+# bar_style = "half"
+
+# ── Colours ──────────────────────────────────────────────────────────────────
 
 # Phase colours — hex (#rrggbb or #rgb), rgb(r,g,b), or a named colour (red, green, cyan, etc.)
 # focus_color = "#e67e80"
@@ -137,33 +158,25 @@ const DEFAULT_CONFIG: &str = r##"# tomodoro configuration
 # short_break_color_key = "color2"
 # long_break_color_key = "color4"
 
-# Default durations in minutes
-# focus = 25
-# short_break = 5
-# long_break = 15
-
-# Sessions before a long break
-# long_break_interval = 4
+# ── Audio ─────────────────────────────────────────────────────────────────────
 
 # Starting volume (0.0–1.0)
 # volume = 1.0
 
-# Skip the startup screen and begin immediately
-# auto_start = false
-
-# When switching profiles during a break, defer the change until the break ends
-# defer_profile_switch = true
-
-# Daily focus goal in minutes — progress shown in header (0 = disabled)
-# daily_goal_mins = 0
-
-# Path to write status JSON; enables bar integration and --pause/--skip IPC
-# waybar_path = "/tmp/tomodoro.json"
-# Send SIGRTMIN+N to waybar after each status write for instant updates (set "signal": N in waybar module)
-# waybar_signal = 5
-
 # Countdown beep seconds at end of each break
 # countdown_beeps = 5
+
+# Custom effect sounds — path to an audio file (ogg, mp3, wav, flac)
+# Files can be placed in ~/.config/tomodoro/sounds/effects/
+# bell_sound = "~/.config/tomodoro/sounds/effects/bell.mp3"
+# beep_sound = "~/.config/tomodoro/sounds/effects/beep.mp3"
+
+# ── Integrations ─────────────────────────────────────────────────────────────
+
+# Path to write status JSON; enables status bar integration and --pause/--skip IPC
+# bar_path = "/tmp/tomodoro.json"
+# Send SIGRTMIN+N to the status bar process after each write for instant updates
+# bar_signal = 5
 
 # Desktop notifications via notify-send on phase end
 # notifications = false
@@ -171,16 +184,10 @@ const DEFAULT_CONFIG: &str = r##"# tomodoro configuration
 # Check crates.io for a newer version on startup (via cargo search)
 # update_check = true
 
-# Lock the progress bar to a specific style regardless of render mode: "half", "quarter", "braille"
-# bar_style = "half"
+# ── Profiles ─────────────────────────────────────────────────────────────────
 
 # Profile to load at startup without showing the picker (must match a [profiles.*] name below)
 # default_profile = "deep"
-
-# Custom effect sounds — path to an audio file (ogg, mp3, wav, flac)
-# Files can be placed in ~/.config/tomodoro/sounds/effects/
-# bell_sound = "~/.config/tomodoro/sounds/effects/bell.mp3"
-# beep_sound = "~/.config/tomodoro/sounds/effects/beep.mp3"
 
 # Timer profiles — named presets selectable at startup
 # Each accepts: focus, short_break, long_break, long_break_interval (minutes/count); omitted values fall back to the defaults above
@@ -232,11 +239,12 @@ impl AppConfig {
             }
         };
 
+        let known = known_keys();
         let mut warnings: Vec<String> = Vec::new();
         let mut dirty_keys: std::collections::HashSet<String> = std::collections::HashSet::new();
 
         for key in table.keys() {
-            if !KNOWN_KEYS.contains(&key.as_str()) {
+            if !known.iter().any(|&k| k == key.as_str()) {
                 warnings.push(format!("'{}' is not a recognised config variable", key));
                 dirty_keys.insert(key.clone());
             }
@@ -294,12 +302,13 @@ impl AppConfig {
 
         let explicit: std::collections::HashSet<String> = table
             .keys()
-            .filter(|k| KNOWN_KEYS.contains(&k.as_str()) && !dirty_keys.contains(*k))
+            .filter(|k| known.iter().any(|&nk| nk == k.as_str()) && !dirty_keys.contains(*k))
             .cloned()
             .collect();
 
-        let migration_needed = KNOWN_KEYS.iter()
-            .filter(|&&k| k != "profiles")
+        let migration_needed = !text.contains("# ── Timer")
+            || known.iter().copied()
+            .filter(|&k| k != "profiles")
             .any(|k| {
                 !text.lines().any(|line| {
                     let s = line.trim().trim_start_matches('#').trim();
@@ -504,24 +513,7 @@ fn build_config_content(config: &AppConfig, explicit: &std::collections::HashSet
         *content = content.replace(commented, active);
     }
 
-    if config.theme != d.theme || explicit.contains("theme") {
-        set(&mut out, "# theme = 0", &format!("theme = {}", config.theme));
-    }
-    if config.render_mode != d.render_mode || explicit.contains("render_mode") {
-        set(
-            &mut out,
-            "# render_mode = \"half\"",
-            &format!("render_mode = \"{}\"", config.render_mode),
-        );
-    }
-    if config.focus_theme.is_some() || explicit.contains("focus_theme") {
-        let t = config.focus_theme.unwrap_or(0);
-        set(&mut out, "# focus_theme = 0", &format!("focus_theme = {}", t));
-    }
-    if config.break_theme.is_some() || explicit.contains("break_theme") {
-        let t = config.break_theme.unwrap_or(0);
-        set(&mut out, "# break_theme = 0", &format!("break_theme = {}", t));
-    }
+    // Timer
     if config.focus != d.focus || explicit.contains("focus") {
         set(&mut out, "# focus = 25", &format!("focus = {}", config.focus));
     }
@@ -534,33 +526,8 @@ fn build_config_content(config: &AppConfig, explicit: &std::collections::HashSet
     if config.long_break_interval != d.long_break_interval || explicit.contains("long_break_interval") {
         set(&mut out, "# long_break_interval = 4", &format!("long_break_interval = {}", config.long_break_interval));
     }
-    if (config.volume - d.volume).abs() > 1e-4 || explicit.contains("volume") {
-        set(&mut out, "# volume = 1.0", &format!("volume = {}", fmt_float(config.volume)));
-    }
     if config.auto_start != d.auto_start || explicit.contains("auto_start") {
         set(&mut out, "# auto_start = false", &format!("auto_start = {}", config.auto_start));
-    }
-    if config.countdown_beeps != d.countdown_beeps || explicit.contains("countdown_beeps") {
-        set(&mut out, "# countdown_beeps = 5", &format!("countdown_beeps = {}", config.countdown_beeps));
-    }
-    if config.notifications != d.notifications || explicit.contains("notifications") {
-        set(&mut out, "# notifications = false", &format!("notifications = {}", config.notifications));
-    }
-    if config.update_check != d.update_check || explicit.contains("update_check") {
-        set(&mut out, "# update_check = true", &format!("update_check = {}", config.update_check));
-    }
-    if config.bar_style.is_some() || explicit.contains("bar_style") {
-        let s = config.bar_style.as_deref().unwrap_or("half");
-        set(&mut out, "# bar_style = \"half\"", &format!("bar_style = \"{}\"", s));
-    }
-    if let Some(ref s) = config.default_profile {
-        set(&mut out, "# default_profile = \"deep\"", &format!("default_profile = \"{}\"", s));
-    }
-    if let Some(ref s) = config.bell_sound {
-        set(&mut out, "# bell_sound = \"~/.config/tomodoro/sounds/effects/bell.mp3\"", &format!("bell_sound = \"{}\"", s));
-    }
-    if let Some(ref s) = config.beep_sound {
-        set(&mut out, "# beep_sound = \"~/.config/tomodoro/sounds/effects/beep.mp3\"", &format!("beep_sound = \"{}\"", s));
     }
     if config.defer_profile_switch != d.defer_profile_switch || explicit.contains("defer_profile_switch") {
         set(&mut out, "# defer_profile_switch = true", &format!("defer_profile_switch = {}", config.defer_profile_switch));
@@ -568,12 +535,30 @@ fn build_config_content(config: &AppConfig, explicit: &std::collections::HashSet
     if config.daily_goal_mins != d.daily_goal_mins || explicit.contains("daily_goal_mins") {
         set(&mut out, "# daily_goal_mins = 0", &format!("daily_goal_mins = {}", config.daily_goal_mins));
     }
-    if let Some(ref s) = config.waybar_path {
-        set(&mut out, "# waybar_path = \"/tmp/tomodoro.json\"", &format!("waybar_path = \"{}\"", s));
+    // Display
+    if config.theme != d.theme || explicit.contains("theme") {
+        set(&mut out, "# theme = 0", &format!("theme = {}", config.theme));
     }
-    if let Some(n) = config.waybar_signal {
-        set(&mut out, "# waybar_signal = 5", &format!("waybar_signal = {}", n));
+    if config.focus_theme.is_some() || explicit.contains("focus_theme") {
+        let t = config.focus_theme.unwrap_or(0);
+        set(&mut out, "# focus_theme = 0", &format!("focus_theme = {}", t));
     }
+    if config.break_theme.is_some() || explicit.contains("break_theme") {
+        let t = config.break_theme.unwrap_or(0);
+        set(&mut out, "# break_theme = 0", &format!("break_theme = {}", t));
+    }
+    if config.render_mode != d.render_mode || explicit.contains("render_mode") {
+        set(
+            &mut out,
+            "# render_mode = \"half\"",
+            &format!("render_mode = \"{}\"", config.render_mode),
+        );
+    }
+    if config.bar_style.is_some() || explicit.contains("bar_style") {
+        let s = config.bar_style.as_deref().unwrap_or("half");
+        set(&mut out, "# bar_style = \"half\"", &format!("bar_style = \"{}\"", s));
+    }
+    // Colours
     if let Some(ref s) = config.focus_color {
         set(&mut out, "# focus_color = \"#e67e80\"", &format!("focus_color = \"{}\"", s));
     }
@@ -594,6 +579,36 @@ fn build_config_content(config: &AppConfig, explicit: &std::collections::HashSet
     }
     if let Some(ref s) = config.long_break_color_key {
         set(&mut out, "# long_break_color_key = \"color4\"", &format!("long_break_color_key = \"{}\"", s));
+    }
+    // Audio
+    if (config.volume - d.volume).abs() > 1e-4 || explicit.contains("volume") {
+        set(&mut out, "# volume = 1.0", &format!("volume = {}", fmt_float(config.volume)));
+    }
+    if config.countdown_beeps != d.countdown_beeps || explicit.contains("countdown_beeps") {
+        set(&mut out, "# countdown_beeps = 5", &format!("countdown_beeps = {}", config.countdown_beeps));
+    }
+    if let Some(ref s) = config.bell_sound {
+        set(&mut out, "# bell_sound = \"~/.config/tomodoro/sounds/effects/bell.mp3\"", &format!("bell_sound = \"{}\"", s));
+    }
+    if let Some(ref s) = config.beep_sound {
+        set(&mut out, "# beep_sound = \"~/.config/tomodoro/sounds/effects/beep.mp3\"", &format!("beep_sound = \"{}\"", s));
+    }
+    // Integrations
+    if let Some(ref s) = config.bar_path {
+        set(&mut out, "# bar_path = \"/tmp/tomodoro.json\"", &format!("bar_path = \"{}\"", s));
+    }
+    if let Some(n) = config.bar_signal {
+        set(&mut out, "# bar_signal = 5", &format!("bar_signal = {}", n));
+    }
+    if config.notifications != d.notifications || explicit.contains("notifications") {
+        set(&mut out, "# notifications = false", &format!("notifications = {}", config.notifications));
+    }
+    if config.update_check != d.update_check || explicit.contains("update_check") {
+        set(&mut out, "# update_check = true", &format!("update_check = {}", config.update_check));
+    }
+    // Profiles
+    if let Some(ref s) = config.default_profile {
+        set(&mut out, "# default_profile = \"deep\"", &format!("default_profile = \"{}\"", s));
     }
 
     out
