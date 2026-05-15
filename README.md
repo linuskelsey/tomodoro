@@ -108,7 +108,7 @@ Any field can be omitted — missing values fall back to the scalar defaults abo
 
 ## Bar integration
 
-Set `bar_path` in config to a file path — tomodoro writes a JSON status object there on every tick while running, and deletes it on exit:
+Set `bar_path` in config to a file path — tomodoro writes a JSON status object there when state changes while running, and deletes it on exit:
 
 ```toml
 bar_path = "/tmp/tomodoro.json"
@@ -128,22 +128,15 @@ Use `--pause` and `--skip` flags to control the running session from outside (wa
 
 ```json
 "custom/tomodoro": {
-    "exec": "cat /tmp/tomodoro.json",
+    "exec": "cat /tmp/tomodoro.json 2>/dev/null",
     "return-type": "json",
-    "interval": 0,
-    "signal": 5,
-    "on-click": "/path/to/tomodoro --pause",
-    "on-click-right": "/path/to/tomodoro --skip"
+    "interval": 1,
+    "on-click": "tomodoro --pause",
+    "on-click-right": "tomodoro --skip"
 }
 ```
 
-For instant updates instead of polling, set `bar_signal` to match the waybar `signal` number (1–30, avoid clashes with other modules):
-
-```toml
-bar_signal = 5
-```
-
-With `bar_signal` set, use `"interval": 0` in the waybar module — it only updates on signal.
+The module is hidden automatically when tomodoro isn't running (file absent → empty output). No `bar_signal` config needed.
 
 CSS classes:
 

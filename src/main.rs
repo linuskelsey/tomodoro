@@ -303,7 +303,7 @@ fn bar_cmd_path(status_path: &str) -> String {
     }
 }
 
-fn write_bar_status(path: &str, timer: &Timer, task_label: Option<&str>, signal: Option<u8>) {
+fn build_bar_json(timer: &Timer, task_label: Option<&str>) -> String {
     let (phase_str, base_class) = match timer.phase {
         Phase::Work => ("F", "focus"),
         Phase::ShortBreak => ("B", "short-break"),
@@ -322,16 +322,17 @@ fn write_bar_status(path: &str, timer: &Timer, task_label: Option<&str>, signal:
     };
     let text = format!("{} {} {}/{}", phase_str, timer.format_remaining(), current, interval);
     let tooltip = task_label.unwrap_or("").replace('\\', "\\\\").replace('"', "\\\"");
-    let _ = std::fs::write(
-        path,
-        format!("{{\"text\":\"{}\",\"tooltip\":\"{}\",\"class\":{}}}\n", text, tooltip, class),
-    );
+    format!("{{\"text\":\"{}\",\"tooltip\":\"{}\",\"class\":{}}}\n", text, tooltip, class)
+}
+
+fn write_bar_status(path: &str, json: &str, signal: Option<u8>) {
+    let _ = std::fs::write(path, json);
     if let Some(n) = signal {
         let _ = std::process::Command::new("pkill")
             .args([&format!("-RTMIN+{}", n), "waybar"])
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())
-            .spawn();
+            .status();
     }
 }
 
@@ -531,6 +532,7 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
     let beep_sound = cfg.beep_sound.clone();
     let bar_path: Option<String> = cfg.bar_path.as_deref().map(expand_tilde);
     let bar_signal: Option<u8> = cfg.bar_signal;
+    let mut last_bar_json: Option<String> = None;
     let audio = audio_thread();
     let ambient = ambient_thread();
     let mut last_ambient: Option<usize> = None;
@@ -687,7 +689,12 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
             beep_pending = 0;
         }
 
-        let deadline = Instant::now() + tick;
+        let effective_tick = if timer.running || endless || vol_flash.is_some() {
+            tick
+        } else {
+            Duration::from_millis(1000)
+        };
+        let deadline = Instant::now() + effective_tick;
         loop {
             let remaining = deadline.saturating_duration_since(Instant::now());
             if event::poll(remaining)? {
@@ -1060,7 +1067,11 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, endless: bool, cfg
 
         if !endless {
             if let Some(ref path) = bar_path {
-                write_bar_status(path, &timer, task_label.as_deref(), bar_signal);
+                let json = build_bar_json(&timer, task_label.as_deref());
+                if last_bar_json.as_deref() != Some(json.as_str()) {
+                    write_bar_status(path, &json, bar_signal);
+                    last_bar_json = Some(json);
+                }
                 let cmd_path = bar_cmd_path(path);
                 if let Ok(cmd) = std::fs::read_to_string(&cmd_path) {
                     let _ = std::fs::remove_file(&cmd_path);
