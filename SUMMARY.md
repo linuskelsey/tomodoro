@@ -1,5 +1,5 @@
 ### Added
-- Status bar integration (`bar_path`, `bar_signal`, `--pause`, `--skip`)
+- Status bar integration - CPU drain patched
 - Config grouped into sections; auto-migrates on first run of new version
 
 ### Changed

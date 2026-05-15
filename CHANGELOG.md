@@ -1,8 +1,19 @@
 # Changelog
 
+## [0.7.1] - 2026-05-15
+### Changed
+- Bar status now only written and signalled when content actually changes — reduces file writes and signal sends from 10×/sec to ~1×/sec while running, silent when paused
+- Waybar recommended config updated to `"interval": 1` polling; `bar_signal` / `interval: 0` caused high idle CPU on Waybar v0.15.x and is no longer the documented approach
+- Tick rate slows to 1s when paused (from 100ms) — cuts TUI redraws from 10 to 1 per second while idle
+
+### Fixed
+- Spawned `pkill` processes are now reaped immediately (`.status()` instead of `.spawn()`) — prevents zombie accumulation over long sessions
+
+---
+
 ## [0.7.0] - 2026-05-14
 ### Added
-- Status bar integration — set `bar_path` in config to write a JSON status file on every tick; waybar, eww, Polybar all supported; `bar_signal` sends SIGRTMIN+N for instant updates without polling
+- Status bar integration — set `bar_path` in config to write a JSON status file while running; waybar, eww, Polybar all supported; `bar_signal` sends SIGRTMIN+N to notify the bar on each update
 - `--pause` and `--skip` IPC flags — control the running session from outside (bar clicks, keybinds, scripts)
 
 ### Changed
